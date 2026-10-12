@@ -17,6 +17,9 @@ public class User {
     @Column(name = "username", nullable = false, unique = true)
     private String username;
 
+    @Column(name = "email", nullable = false, unique = true)
+    private String email;
+
     @Column(name = "password", nullable = false)
     private String password;
 
@@ -24,4 +27,15 @@ public class User {
     @Column(name = "role", nullable = false)
     private Role role;
 
+    @Column(name = "email_verified", nullable = false)
+    private boolean emailVerf;
+
+    @Column(name = "is_active", nullable = false)
+    private boolean isActive;
+
+    @PrePersist
+    public void onCreate() {
+        this.emailVerf = false;
+        this.isActive = false;
+    }
 }

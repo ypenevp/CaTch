@@ -122,4 +122,46 @@ public class GlobalExceptionHandler {
         log.warn("Invalid credentials");
         return buildError(HttpStatus.UNAUTHORIZED,  ex.getMessage(), req.getRequestURI());
     }
+
+    @ExceptionHandler(EmailDeliveryException.class)
+    public ResponseEntity<GeneralErrorResponse> handleEmailDelivery(
+            EmailDeliveryException ex, HttpServletRequest req) {
+        log.error("Email delivery failed", ex);
+        return buildError(HttpStatus.SERVICE_UNAVAILABLE, "Unable to send verification email. Please try again later.", req.getRequestURI());
+    }
+
+    @ExceptionHandler(EmailNotVerifiedException.class)
+    public ResponseEntity<GeneralErrorResponse> handleEmailNotVerified(
+            EmailNotVerifiedException ex, HttpServletRequest req) {
+        log.warn("The email is not verified: {}", ex.getMessage());
+        return buildError(HttpStatus.FORBIDDEN,  ex.getMessage(), req.getRequestURI());
+    }
+
+    @ExceptionHandler(InactiveUserException.class)
+    public ResponseEntity<GeneralErrorResponse> handleInactiveUser(
+            InactiveUserException ex, HttpServletRequest req) {
+        log.warn("Inactive user attempted login: {}", ex.getMessage());
+        return buildError(HttpStatus.UNAUTHORIZED, ex.getMessage(), req.getRequestURI());
+    }
+
+    @ExceptionHandler(InvalidVerificationCodeException.class)
+    public ResponseEntity<GeneralErrorResponse> handleInvalidVerificationCode(
+            InvalidVerificationCodeException ex, HttpServletRequest req) {
+        log.warn("Invalid verification code: {}", ex.getMessage());
+        return buildError(HttpStatus.BAD_REQUEST, ex.getMessage(), req.getRequestURI());
+    }
+
+    @ExceptionHandler(VerificationCodeExpiredException.class)
+    public ResponseEntity<GeneralErrorResponse> handleExpiredVerificationCode(
+            VerificationCodeExpiredException ex, HttpServletRequest req) {
+        log.warn("Expired verification code: {}", ex.getMessage());
+        return buildError(HttpStatus.BAD_REQUEST, ex.getMessage(), req.getRequestURI());
+    }
+
+    @ExceptionHandler(VerificationResendTooSoonException.class)
+    public ResponseEntity<GeneralErrorResponse> handleVerificationResendTooSoon(
+            VerificationResendTooSoonException ex, HttpServletRequest req) {
+        log.warn("Verification resend requested too soon: {}", ex.getMessage());
+        return buildError(HttpStatus.TOO_MANY_REQUESTS, ex.getMessage(), req.getRequestURI());
+    }
 }

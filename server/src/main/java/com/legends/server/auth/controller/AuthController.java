@@ -1,9 +1,6 @@
 package com.legends.server.auth.controller;
 
-import com.legends.server.auth.dto.request.LoginRequest;
-import com.legends.server.auth.dto.request.LogoutRequest;
-import com.legends.server.auth.dto.request.RefreshTokenRequest;
-import com.legends.server.auth.dto.request.RegisterRequest;
+import com.legends.server.auth.dto.request.*;
 import com.legends.server.auth.dto.response.AuthResponse;
 import com.legends.server.auth.dto.response.UserDetailsResponse;
 import com.legends.server.auth.service.AuthService;
@@ -37,6 +34,12 @@ public class AuthController {
         return ResponseEntity.status(HttpStatus.CREATED).location(location).build();
     }
 
+    @PostMapping("/verify-email")
+    public ResponseEntity<Void> verifyEmail(@Valid @RequestBody VerifyEmailRequest request) {
+        authService.verifyEmail(request);
+        return ResponseEntity.status(HttpStatus.NO_CONTENT).build();
+    }
+
     @PostMapping("/login")
     public ResponseEntity<AuthResponse> login(@Valid @RequestBody LoginRequest request) {
         AuthResponse response = authService.loginUser(request);
@@ -52,6 +55,12 @@ public class AuthController {
     @PostMapping("/logout")
     public ResponseEntity<Void> logout(@Valid @RequestBody LogoutRequest request) {
         authService.logoutUser(request.refreshToken());
+        return ResponseEntity.status(HttpStatus.NO_CONTENT).build();
+    }
+
+    @PostMapping("/resend-code")
+    public ResponseEntity<Void> resendCode(@Valid @RequestBody ResendVerificationCodeRequest request) {
+        authService.resendVerificationCode(request);
         return ResponseEntity.status(HttpStatus.NO_CONTENT).build();
     }
 
