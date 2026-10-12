@@ -32,7 +32,7 @@ export default function SignUp({ onLoginPress, onClose, onShowVerify }) {
     const result = await handleSignUp({ email, username, password });
     setLoading(false);
     if (result.ok) {
-        if (onShowVerify) onShowVerify();
+        if (onShowVerify) onShowVerify(email);
         else onLoginPress();
     } else {
         setError(result.data.detail || "Sign Up failed.");

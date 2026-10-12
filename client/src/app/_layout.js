@@ -15,6 +15,7 @@ export default function Layout() {
   const modal = useUIStore((state) => state.modal);
   const closeModal = useUIStore((state) => state.closeModal);
   const [screen, setScreen] = useState(null);
+  const [pendingEmail, setPendingEmail] = useState("");
 
   useEffect(() => {
     if (modal === 'login') setScreen('login');
