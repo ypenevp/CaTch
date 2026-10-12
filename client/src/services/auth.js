@@ -49,7 +49,7 @@ export const handleSignUp = async ({ username, password, email}) => {
 };
 
 
-export const handleVerify = async ({ code }) => {
+export const handleVerify = async ({ code, email }) => {
     try {
         // console.log("API URL:", API_URL);
 
@@ -58,7 +58,7 @@ export const handleVerify = async ({ code }) => {
             headers: {
                 "Content-Type": "application/json",
             },
-            body: JSON.stringify({ code }),
+            body: JSON.stringify({ code, email }),
         });
 
         if (response.ok) {

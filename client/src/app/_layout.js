@@ -60,11 +60,14 @@ export default function Layout() {
                   <SignUp
                     onLoginPress={() => setScreen('login')}
                     onClose={closeAll}
-                    onShowVerify={() => setScreen('verify')}
+                    onShowVerify={(email) => {
+                      setPendingEmail(email);
+                      setScreen('verify');
+                    }}
                   />
                 )}
                 {screen === 'verify' && (
-                  <VerifyCode onSuccess={() => setScreen('success')} />
+                  <VerifyCode email={pendingEmail} onSuccess={() => setScreen('success')} />
                 )}
                 {screen === 'success' && (
                   <Success onDone={closeAll} />

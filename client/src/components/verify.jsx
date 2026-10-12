@@ -5,7 +5,7 @@ import { handleVerify } from "../services/auth";
 const BLUE = '#2563eb';
 const BLUE_LIGHT = '#dbeafe';
 
-export default function VerifyCode({ onSuccess }) {
+export default function VerifyCode({ onSuccess, email }) {
     const [error, setError] = useState("");
     const [code, setCode] = useState("");
     const [loading, setLoading] = useState(false);
@@ -17,8 +17,12 @@ export default function VerifyCode({ onSuccess }) {
             setError("Please enter the verification code.");
             return;
         }
+        if (!email) {
+            setError("Email is required for verification.");
+            return;
+        }
         setLoading(true);
-        const result = await handleVerify({ code });
+        const result = await handleVerify({ code, email });
         setLoading(false);
         if (result.ok) {
             onSuccess();
