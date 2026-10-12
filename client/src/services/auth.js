@@ -8,7 +8,7 @@ export const handleSignUp = async ({ username, password, email}) => {
 
         console.log("Signup data:", { username, email, password });
 
-        const response = await fetch(`http://192.168.1.15:7070/api/12/auth/register`, {
+        const response = await fetch(`http://192.168.100.5:7070/api/v1/auth/register`, {
             method: "POST",
             headers: {
                 "Content-Type": "application/json",
@@ -53,7 +53,7 @@ export const handleVerify = async ({ code }) => {
     try {
         // console.log("API URL:", API_URL);
 
-        const response = await fetch(`http://192.168.1.15:7070/api/v2/auth/verify`, {
+        const response = await fetch(`http://192.168.100.5:7070/api/v1/auth/verify`, {
             method: "POST",
             headers: {
                 "Content-Type": "application/json",
@@ -93,7 +93,7 @@ export const handleVerify = async ({ code }) => {
 export const handleLogin = async ({ email, password }) => {
     try {
         // console.log("API URL:", API_URL);
-        const response = await fetch(`http://192.168.1.15:7070/api/v2/auth/login`, {
+        const response = await fetch(`http://192.168.100.5:7070/api/v1/auth/login`, {
             method: "POST",
             headers: {
                 "Content-Type": "application/json",
