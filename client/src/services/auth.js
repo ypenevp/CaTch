@@ -53,7 +53,7 @@ export const handleVerify = async ({ code, email }) => {
     try {
         // console.log("API URL:", API_URL);
 
-        const response = await fetch(`http://192.168.100.5:7070/api/v1/auth/verify`, {
+        const response = await fetch(`http://192.168.100.5:7070/api/v1/auth/verify-email`, {
             method: "POST",
             headers: {
                 "Content-Type": "application/json",

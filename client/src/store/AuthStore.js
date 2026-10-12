@@ -7,7 +7,7 @@ const useAuthStore = create((set) => ({
 
     checkToken: async () => {
         try {
-            const token = await AsyncStorage.getItem('access')
+            const token = await AsyncStorage.getItem('accessToken')
             if (token) {
                 set({ user: { token } })
             } else {
@@ -23,7 +23,7 @@ const useAuthStore = create((set) => ({
 
     login: async (userData) => {
         try {
-            await AsyncStorage.setItem('access', userData.token)
+            await AsyncStorage.setItem('accessToken', userData.accessToken)
         } catch (e) {
             console.error('Error saving token:', e)
         }
@@ -32,7 +32,7 @@ const useAuthStore = create((set) => ({
 
     logout: async () => {
         try {
-            await AsyncStorage.removeItem('access')
+            await AsyncStorage.removeItem('accessToken')
         } catch (e) {
             console.error('Error removing token:', e)
         }

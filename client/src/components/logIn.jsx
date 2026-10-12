@@ -26,7 +26,7 @@ export default function Login({ onSignUpPress, onLoginSuccess, onClose }) {
         const result = await handleLogin({ email, password });
         setLoading(false);
         if (result.ok) {
-            login({ token: result.data.token });
+            login(result.data);
             if (onLoginSuccess) onLoginSuccess();
         } else {
             setError(result.data.detail || "Login failed.");
