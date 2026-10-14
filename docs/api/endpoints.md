@@ -16,3 +16,4 @@
 | **Logout User** | `POST` | `/api/v1/auth/logout` | `USER` | No | `204` | **Body:** `refreshToken` |
 | **Current User Profile** | `GET` | `/api/v1/auth/me` | `USER` | Yes | `200` | **None** |
 | **Get All Users** | `GET` | `/api/v1/auth/users` | `ADMIN` | Yes | `200` | **Query params:** `page`, `size`, `sort` |
+| **Deactivate User Account** | `PATCH` | `/api/v1/auth/users/{targetId}/deactivate` | `ADMIN` | Yes | `204` | **Path param:** `targetId` |

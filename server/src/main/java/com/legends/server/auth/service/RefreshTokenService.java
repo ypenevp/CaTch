@@ -66,6 +66,11 @@ public class RefreshTokenService {
         repository.deleteById(refreshToken.getId());
     }
 
+    @Transactional
+    public void deleteByUser(User user) {
+        repository.deleteByUser(user);
+    }
+
     @Scheduled(cron = "0 0 15 * * *")
     public void deleteExpiredTokens() {
         repository.deleteAllByExpiresAtBefore(Instant.now());
