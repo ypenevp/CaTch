@@ -46,7 +46,7 @@ function AddDeviceSection({ onPress }) {
               height: 48, borderRadius: 4, backgroundColor: ORANGE, marginTop: 14,
               borderBottomWidth: 4, borderBottomColor: ORANGE_DARK,
               elevation: 6, shadowColor: ORANGE, shadowOpacity: 0.4,
-              shadowOffset: { width: 0, height: 4 }, shadowRadius: 8,
+              shadowOffset: { width: 0, height: 4 }, shadowRadius: 8, borderRadius: 12,
             }}
           >
             <MaterialCommunityIcons name="plus-circle" size={20} color="#fff" />
@@ -65,7 +65,7 @@ function DeviceItem({ device }) {
     <View style={{
       flexDirection: "row", alignItems: "center", backgroundColor: "#fff", padding: 14, marginBottom: 10, gap: 12, elevation: 1,
       shadowColor: "#000", shadowOpacity: 0.05,
-      shadowOffset: { width: 0, height: 1 }, shadowRadius: 4,
+      shadowOffset: { width: 0, height: 1 }, shadowRadius: 4, borderRadius: 12,
     }}>
       <View style={{
         width: 46, height: 46, borderRadius: 12, backgroundColor: BLUE_LIGHT,

@@ -66,7 +66,8 @@ const TopNav = () => {
                 </TouchableOpacity>
 
                 <View style={{
-                        flexDirection: 'row', backgroundColor: '#f8fafc', overflow: 'hidden',
+                        flexDirection: 'row', backgroundColor: '#f8fafc',
+                        borderRadius: 15, overflow: 'hidden',
                         borderWidth: 2, borderColor: BLUE, marginBottom: 7, marginRight: 20,
                     }}>
                         <TouchableOpacity

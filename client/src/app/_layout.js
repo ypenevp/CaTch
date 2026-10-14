@@ -1,16 +1,30 @@
 import { Stack } from "expo-router";
-import { View, Modal, TouchableOpacity, KeyboardAvoidingView, Platform } from "react-native";
+import { View, Modal, KeyboardAvoidingView, Platform } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 import { useState, useEffect } from "react";
+import {
+  useFonts,
+  Outfit_400Regular,
+  Outfit_500Medium,
+  Outfit_600SemiBold,
+} from "@expo-google-fonts/outfit";
 import BottomNav from "@/components/bottomNav";
 import TopNav from "@/components/topNav";
 import Login from "@/components/logIn";
 import SignUp from "@/components/signUp";
 import VerifyCode from "@/components/verify";
 import Success from "@/components/success";
+import { theme } from "../theme";
 
 import useUIStore from '../store/UIStore.js';
 
 export default function Layout() {
+  const [fontsLoaded] = useFonts({
+    Outfit_400Regular,
+    Outfit_500Medium,
+    Outfit_600SemiBold,
+  });
+
   const isVisible = useUIStore((state) => state.modal !== null);
   const modal = useUIStore((state) => state.modal);
   const closeModal = useUIStore((state) => state.closeModal);
@@ -30,6 +44,8 @@ export default function Layout() {
     closeModal();
   };
 
+  if (!fontsLoaded) return null;
+
   return (
     <View style={{ flex: 1 }}>
       <TopNav />
@@ -38,45 +54,48 @@ export default function Layout() {
       </View>
       <BottomNav />
 
-      <Modal visible={isVisible} transparent animationType="slide" onRequestClose={closeAll}>
-        <TouchableOpacity activeOpacity={1} onPress={closeAll}
-          style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.45)', justifyContent: 'flex-end' }}>
-          <TouchableOpacity activeOpacity={1}>
-            <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
-              <View style={{
-                backgroundColor: '#fff',
-                borderTopLeftRadius: 28,
-                borderTopRightRadius: 28,
-                padding: 28,
-                paddingBottom: 40,
-              }}>
-                {screen === 'login' && (
-                  <Login
-                    onSignUpPress={() => setScreen('signup')}
-                    onLoginSuccess={closeAll}
-                    onClose={closeAll}
-                  />
-                )}
-                {screen === 'signup' && (
-                  <SignUp
-                    onLoginPress={() => setScreen('login')}
-                    onClose={closeAll}
-                    onShowVerify={(email) => {
-                      setPendingEmail(email);
-                      setScreen('verify');
-                    }}
-                  />
-                )}
-                {screen === 'verify' && (
-                  <VerifyCode email={pendingEmail} onSuccess={() => setScreen('success')} />
-                )}
-                {screen === 'success' && (
-                  <Success onDone={closeAll} />
-                )}
-              </View>
+      <Modal
+        visible={isVisible}
+        transparent
+        statusBarTranslucent
+        animationType="slide"
+        onRequestClose={closeAll}
+      >
+        {screen === 'success' ? (
+          <Success onDone={closeAll} />
+        ) : (
+          <SafeAreaView style={{ flex: 1, backgroundColor: theme.bg }}>
+            <KeyboardAvoidingView
+              style={{ flex: 1 }}
+              behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+            >
+              {screen === 'login' && (
+                <Login
+                  onSignUpPress={() => setScreen('signup')}
+                  onLoginSuccess={closeAll}
+                  onClose={closeAll}
+                />
+              )}
+              {screen === 'signup' && (
+                <SignUp
+                  onLoginPress={() => setScreen('login')}
+                  onClose={closeAll}
+                  onShowVerify={(email) => {
+                    setPendingEmail(email);
+                    setScreen('verify');
+                  }}
+                />
+              )}
+              {screen === 'verify' && (
+                <VerifyCode
+                  email={pendingEmail}
+                  onBack={() => setScreen('signup')}
+                  onSuccess={() => setScreen('success')}
+                />
+              )}
             </KeyboardAvoidingView>
-          </TouchableOpacity>
-        </TouchableOpacity>
+          </SafeAreaView>
+        )}
       </Modal>
     </View>
   );
