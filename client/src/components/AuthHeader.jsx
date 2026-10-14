@@ -25,11 +25,10 @@ export default function AuthHeader({ icon, title, subtitle, onBack }) {
       <View style={{ alignItems: "center", marginTop: 20 }}>
         {icon && (
           <View style={{
-            width: 130, height: 130,
-            backgroundColor: theme.primarySoft,
+            width: 68, height: 68,
             alignItems: "center", justifyContent: "center", marginBottom: 20,
           }}>
-            <Ionicons name={icon} size={30} color={theme.primary} />
+            <Ionicons name={icon} size={70} color={theme.primary} />
           </View>
         )}
 
