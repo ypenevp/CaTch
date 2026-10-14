@@ -88,4 +88,11 @@ public class AuthController {
         Page<UserDetailsResponse> response = authService.getAllUsers(pageable);
         return ResponseEntity.status(HttpStatus.OK).body(response);
     }
+
+    @PatchMapping("/users/{targetId}/deactivate")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<Void> stopAccount(@PathVariable Long targetId) {
+        authService.stopUserAccount(targetId);
+        return ResponseEntity.noContent().build();
+    }
 }

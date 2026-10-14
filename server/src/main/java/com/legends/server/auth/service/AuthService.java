@@ -100,6 +100,10 @@ public class AuthService {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new ResourceNotFoundException("User not found"));
 
+        if (!user.isActive()) {
+            throw new InactiveUserException("User account is inactive");
+        }
+
         String newAccessToken = jwtUtil.generateToken(user.getId(), user.getRole().name());
         RefreshToken newRefreshToken = refreshTokenService.create(user);
 
@@ -156,6 +160,15 @@ public class AuthService {
     @Transactional(readOnly = true)
     public Page<UserDetailsResponse> getAllUsers(Pageable pageable) {
         return userRepository.findAll(pageable).map(UserDetailsResponse::from);
+    }
+
+    @Transactional
+    public void stopUserAccount(Long targetId) {
+        User targetUser = userRepository.findById(targetId)
+                .orElseThrow(() -> new ResourceNotFoundException("This account does not exist"));
+
+        targetUser.setActive(false);
+        refreshTokenService.deleteByUser(targetUser);
     }
 
 }
