@@ -7,7 +7,7 @@ const useUserStore = create((set) => ({
 
     fetchUser: async () => {
         try {
-            const token = await AsyncStorage.getItem('access')
+            const token = await AsyncStorage.getItem('accessToken')
             if (token) {
                 const userDetails = await GetUserDetails()
                 set({ user: userDetails })

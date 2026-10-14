@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Text, View, TouchableOpacity, ScrollView, Switch } from "react-native";
 import { handleLogin } from "../services/auth";
 import useAuthStore from "../store/AuthStore.js";
-import { theme } from "../theme";
+import { theme } from "../theme/theme";
 import AuthHeader from "./AuthHeader";
 import AuthInput from "./AuthInput";
 import PrimaryButton from "./PrimaryButton";
@@ -41,17 +41,16 @@ export default function Login({ onSignUpPress, onLoginSuccess, onClose, onForgot
       showsVerticalScrollIndicator={false}
     >
       <AuthHeader
-        title="Welcome Back"
-        subtitle="Stay connected by signing in with your email and password to access your account."
+        title="Welcome back"
+        subtitle="Sign in to your CaTch account to monitor your health in real time."
         onBack={onClose}
       />
-
-      <SocialButtons />
 
       <ErrorBox message={error} />
 
       <AuthInput
-        label="Email Address"
+        label="Email"
+        icon="mail-outline"
         placeholder="name@email.com"
         value={email}
         onChangeText={setEmail}
@@ -60,6 +59,7 @@ export default function Login({ onSignUpPress, onLoginSuccess, onClose, onForgot
       />
       <AuthInput
         label="Password"
+        icon="lock-closed-outline"
         placeholder="Enter your password"
         value={password}
         onChangeText={setPassword}
@@ -68,40 +68,38 @@ export default function Login({ onSignUpPress, onLoginSuccess, onClose, onForgot
       />
 
       <View style={{
-        flexDirection: "row", alignItems: "center",
-        justifyContent: "space-between", marginBottom: 28,
+        flexDirection: "row", alignItems: "end", gap: 12,
+        justifyContent: "flex-end", marginBottom: 28,
       }}>
-        <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+        {/* <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
           <Switch
             value={remember}
             onValueChange={setRemember}
-            trackColor={{ false: "#E3E3E3", true: theme.primary }}
+            trackColor={{ false: "#CBD5E1", true: theme.primary }}
             thumbColor="#fff"
             style={{ transform: [{ scale: 0.8 }] }}
           />
           <Text style={{ fontFamily: theme.font.regular, fontSize: 14, color: theme.textMuted }}>
             Remember me
           </Text>
-        </View>
+        </View> */}
 
         <TouchableOpacity onPress={onForgotPress} hitSlop={8}>
-          <Text style={{ fontFamily: theme.font.medium, fontSize: 14, color: theme.text }}>
-            Forgot Password?
+          <Text style={{ fontFamily: theme.font.medium, fontSize: 14, color: theme.primary }}>
+            Forgot password?
           </Text>
         </TouchableOpacity>
       </View>
 
-      <PrimaryButton title="Sign In" onPress={onLoginPress} loading={loading} />
+      <PrimaryButton title="Log in" onPress={onLoginPress} loading={loading} />
 
-      <View style={{ flex: 1, minHeight: 32 }} />
-
-      <View style={{ flexDirection: "row", justifyContent: "center", alignItems: "center" }}>
+      <View style={{ flexDirection: "row", justifyContent: "center", alignItems: "center", marginVertical: 24 }}>
         <Text style={{ fontFamily: theme.font.regular, fontSize: 15, color: theme.textMuted }}>
           Don't have an account?{" "}
         </Text>
         <TouchableOpacity onPress={onSignUpPress} hitSlop={8}>
-          <Text style={{ fontFamily: theme.font.semibold, fontSize: 15, color: theme.text }}>
-            Sign Up
+          <Text style={{ fontFamily: theme.font.semibold, fontSize: 15, color: theme.primary }}>
+            Sign up
           </Text>
         </TouchableOpacity>
       </View>

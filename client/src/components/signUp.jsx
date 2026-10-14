@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Text, View, TouchableOpacity, ScrollView } from "react-native";
 import { handleSignUp } from "../services/auth.js";
-import { theme } from "../theme";
+import { theme } from "../theme/theme.js";
 import AuthHeader from "./AuthHeader";
 import AuthInput from "./AuthInput";
 import PrimaryButton from "./PrimaryButton";
@@ -45,16 +45,15 @@ export default function SignUp({ onLoginPress, onClose, onShowVerify }) {
     >
       <AuthHeader
         title="Create your account"
-        subtitle="Provide your email, username and password to create your account and get started."
+        subtitle="Join CaTch to connect your bracelet and keep track of your health."
         onBack={onClose}
       />
-
-      <SocialButtons />
 
       <ErrorBox message={error} />
 
       <AuthInput
-        label="Email Address"
+        label="Email"
+        icon="mail-outline"
         placeholder="name@email.com"
         value={email}
         onChangeText={setEmail}
@@ -63,6 +62,7 @@ export default function SignUp({ onLoginPress, onClose, onShowVerify }) {
       />
       <AuthInput
         label="Username"
+        icon="person-outline"
         placeholder="Choose a username"
         value={username}
         onChangeText={setUsername}
@@ -70,13 +70,15 @@ export default function SignUp({ onLoginPress, onClose, onShowVerify }) {
       />
       <AuthInput
         label="Password"
+        icon="lock-closed-outline"
         placeholder="Create a password"
         value={password}
         onChangeText={setPassword}
         secure
       />
       <AuthInput
-        label="Repeat Password"
+        label="Repeat password"
+        icon="lock-closed-outline"
         placeholder="Repeat your password"
         value={repeatPassword}
         onChangeText={setRepeatPassword}
@@ -84,17 +86,15 @@ export default function SignUp({ onLoginPress, onClose, onShowVerify }) {
       />
 
       <View style={{ height: 10 }} />
-      <PrimaryButton title="Sign Up" onPress={onSignUpPress} loading={loading} />
+      <PrimaryButton title="Sign up" onPress={onSignUpPress} loading={loading} />
 
-      <View style={{ flex: 1, minHeight: 32 }} />
-
-      <View style={{ flexDirection: "row", justifyContent: "center", alignItems: "center" }}>
+      <View style={{ flexDirection: "row", justifyContent: "center", alignItems: "center", marginVertical: 24 }}>
         <Text style={{ fontFamily: theme.font.regular, fontSize: 15, color: theme.textMuted }}>
           Already have an account?{" "}
         </Text>
         <TouchableOpacity onPress={onLoginPress} hitSlop={8}>
-          <Text style={{ fontFamily: theme.font.semibold, fontSize: 15, color: theme.text }}>
-            Log In
+          <Text style={{ fontFamily: theme.font.semibold, fontSize: 15, color: theme.primary }}>
+            Log in
           </Text>
         </TouchableOpacity>
       </View>
