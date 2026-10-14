@@ -14,7 +14,7 @@ export default function AuthHeader({ icon, title, subtitle, onBack }) {
               width: 44, height: 44, borderRadius: theme.radius,
               backgroundColor: theme.surface,
               borderWidth: 1, borderColor: theme.border,
-              alignItems: "center", justifyContent: "center",
+              alignItems: "center", justifyContent: "center", marginTop: 4,
             }}
           >
             <Ionicons name="arrow-back" size={20} color={theme.text} />
@@ -25,9 +25,8 @@ export default function AuthHeader({ icon, title, subtitle, onBack }) {
       <View style={{ alignItems: "center", marginTop: 20 }}>
         {icon && (
           <View style={{
-            width: 68, height: 68, borderRadius: 20,
+            width: 130, height: 130,
             backgroundColor: theme.primarySoft,
-            borderWidth: 1, borderColor: theme.primaryBorder,
             alignItems: "center", justifyContent: "center", marginBottom: 20,
           }}>
             <Ionicons name={icon} size={30} color={theme.primary} />

@@ -4,7 +4,6 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { theme } from "../theme/theme";
 import PrimaryButton from "./PrimaryButton";
 
-// Рендерира собствен затъмнен фон + bottom sheet
 export default function Success({ onDone }) {
   const insets = useSafeAreaInsets();
 
@@ -19,7 +18,6 @@ export default function Success({ onDone }) {
         paddingBottom: Math.max(insets.bottom, 16) + 8,
         alignItems: "center",
       }}>
-        {/* концентрични кръгове около отметката */}
         <View style={{
           width: 132, height: 132, borderRadius: 66,
           backgroundColor: theme.primarySoft,
@@ -31,7 +29,7 @@ export default function Success({ onDone }) {
             alignItems: "center", justifyContent: "center",
           }}>
             <View style={{
-              width: 80, height: 80, borderRadius: 40, backgroundColor: theme.primary,
+              width: 80, height: 80, borderRadius: 40, backgroundColor: "#34a737",
               alignItems: "center", justifyContent: "center",
               shadowColor: theme.primary, shadowOpacity: 0.35,
               shadowOffset: { width: 0, height: 8 }, shadowRadius: 14, elevation: 6,

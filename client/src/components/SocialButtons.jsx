@@ -23,8 +23,6 @@ function SocialButton({ icon, label, onPress }) {
   );
 }
 
-// TODO: свържи onGoogle / onApple с expo-auth-session и expo-apple-authentication.
-// Apple Sign-In работи само на iOS – за Android скрий бутона (Platform.OS === 'ios').
 export default function SocialButtons({ onGoogle, onApple }) {
   return (
     <>
