@@ -2,6 +2,7 @@ package com.legends.server.auth.service;
 
 import com.legends.server.auth.entity.Code;
 import com.legends.server.auth.entity.User;
+import com.legends.server.auth.entity.VerificationCodePurpose;
 import com.legends.server.auth.repository.UserRepository;
 import com.legends.server.auth.repository.VerificationCodeRepository;
 import com.legends.server.exception.custom.InvalidVerificationCodeException;
@@ -39,27 +40,78 @@ public class VerificationCodeService {
         this.userRepository = userRepository;
     }
 
-    @Transactional
-    public void createAndSendCode(User user) {
-        codeRepository.deleteAllByUser(user);
+    private void createAndSendCode(User user, VerificationCodePurpose purpose) {
+        codeRepository.deleteByUserAndPurpose(user, purpose);
         codeRepository.flush(); // ensure the old code is deleted before inserting the new one.
 
         String rawCode = String.format("%06d", secureRandom.nextInt(1_000_000));
 
         Code code = new Code();
         code.setUser(user);
+        code.setPurpose(purpose);
         code.setCode(passwordEncoder.encode(rawCode));
         code.setExpiresAt(Instant.now().plus(expirationMinutes, ChronoUnit.MINUTES));
 
         codeRepository.save(code);
 
-        emailService.sendVerificationEmail(user.getEmail(), rawCode);
+        if (purpose == VerificationCodePurpose.EMAIL_VERIFICATION) {
+            emailService.sendVerificationEmail(user.getEmail(), rawCode);
+        }
+
+        if(purpose == VerificationCodePurpose.PASSWORD_RESET){
+            emailService.sendPasswordResetEmail(user.getEmail(), rawCode);
+        }
+    }
+
+    @Transactional
+    public void createAndSendEmailVerificationCode(User user) {
+        createAndSendCode(user, VerificationCodePurpose.EMAIL_VERIFICATION);
+    }
+
+    @Transactional
+    public void verifyEmailCode(User user, String rawCode) {
+        Code code = getValidCode(user, VerificationCodePurpose.EMAIL_VERIFICATION, rawCode);
+
+        user.setEmailVerf(true);
+        user.setActive(true);
+        codeRepository.delete(code);
+    }
+
+
+    @Transactional
+    public void createAndSendPasswordResetCode(User user) {
+        checkCooldown(user, VerificationCodePurpose.PASSWORD_RESET);
+        createAndSendCode(user, VerificationCodePurpose.PASSWORD_RESET);
     }
     @Transactional
-    public void verifyCode(User user, String rawCode) {
+    public void verifyPasswordResetCode(User user, String rawCode) {
+        Code code = getValidCode(user, VerificationCodePurpose.PASSWORD_RESET, rawCode);
 
+        codeRepository.delete(code);
+    }
+
+    @Transactional
+    public void resendEmailVerificationCode(User user) {
+        checkCooldown(user, VerificationCodePurpose.EMAIL_VERIFICATION);
+        createAndSendEmailVerificationCode(user);
+    }
+
+    private void checkCooldown(User user, VerificationCodePurpose purpose) {
+        codeRepository.findByUserAndPurpose(user, purpose).ifPresent(existingCode -> {
+            Instant nextAllowedTime = existingCode
+                    .getCreatedAt()
+                    .plusSeconds(resendCooldownSeconds);
+
+            if (nextAllowedTime.isAfter(Instant.now())) {
+                long remainingSeconds = Duration.between(Instant.now(), nextAllowedTime).getSeconds();
+                throw new VerificationResendTooSoonException("Please wait " + remainingSeconds + " seconds before requesting a new code");
+            }
+        });
+    }
+
+    private Code getValidCode(User user, VerificationCodePurpose purpose, String rawCode) {
         Code code = codeRepository
-                .findByUser(user)
+                .findByUserAndPurpose(user, purpose)
                 .orElseThrow(() -> new InvalidVerificationCodeException("Invalid verification code"));
 
         if (code.getExpiresAt().isBefore(Instant.now())) {
@@ -71,26 +123,6 @@ public class VerificationCodeService {
             throw new InvalidVerificationCodeException("Invalid verification code");
         }
 
-        user.setEmailVerf(true);
-        user.setActive(true);
-
-        userRepository.save(user);
-        codeRepository.delete(code);
-    }
-
-
-    @Transactional
-    public void resendCode(User user) {
-
-        codeRepository.findByUser(user).ifPresent(existingCode -> {
-            Instant nextAllowedTime = existingCode.getCreatedAt().plusSeconds(resendCooldownSeconds);
-
-            if (nextAllowedTime.isAfter(Instant.now())) {
-                long remainingSeconds = Duration.between(Instant.now(), nextAllowedTime).getSeconds();
-                throw new VerificationResendTooSoonException("Please wait " + remainingSeconds + " seconds before requesting a new code");
-            }
-        });
-
-        createAndSendCode(user);
+        return code;
     }
 }

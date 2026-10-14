@@ -1,9 +1,6 @@
 package com.legends.server.auth.service;
 
-import com.legends.server.auth.dto.request.LoginRequest;
-import com.legends.server.auth.dto.request.RegisterRequest;
-import com.legends.server.auth.dto.request.ResendVerificationCodeRequest;
-import com.legends.server.auth.dto.request.VerifyEmailRequest;
+import com.legends.server.auth.dto.request.*;
 import com.legends.server.auth.dto.response.AuthResponse;
 import com.legends.server.auth.dto.response.UserDetailsResponse;
 import com.legends.server.auth.entity.RefreshToken;
@@ -56,7 +53,7 @@ public class AuthService {
 
         User savedUser = userRepository.save(user);
 
-        verificationCodeService.createAndSendCode(savedUser);
+        verificationCodeService.createAndSendEmailVerificationCode(savedUser);
     }
 
     @Transactional
@@ -69,7 +66,7 @@ public class AuthService {
             throw new InvalidVerificationCodeException("Email is already verified");
         }
 
-        verificationCodeService.verifyCode(user, request.code());
+        verificationCodeService.verifyEmailCode(user, request.code());
     }
 
     @Transactional
@@ -118,7 +115,30 @@ public class AuthService {
             throw new InvalidVerificationCodeException("Email is already verified");
         }
 
-        verificationCodeService.resendCode(user);
+        verificationCodeService.resendEmailVerificationCode(user);
+    }
+
+    @Transactional
+    public void requestPasswordReset(ForgotPasswordRequest request) {
+        User user = userRepository.findByEmail(request.email())
+                .orElseThrow(() -> new ResourceNotFoundException("Invalid email"));
+
+        verificationCodeService.createAndSendPasswordResetCode(user);
+    }
+
+    @Transactional
+    public void resetPassword(ResetPasswordRequest request) {
+        if (!request.newPassword().equals(request.confirmPassword())) {
+            throw new InvalidCredentialsException("Passwords do not match");
+        }
+
+        User user = userRepository.findByEmail(request.email())
+                .orElseThrow(() -> new ResourceNotFoundException("User not found"));
+
+        verificationCodeService.verifyPasswordResetCode(user, request.code());
+
+        user.setPassword(passwordEncoder.encode(request.newPassword()));
+        userRepository.save(user);
     }
 
     @Transactional
