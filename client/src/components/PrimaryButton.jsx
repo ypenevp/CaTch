@@ -1,5 +1,5 @@
 import { TouchableOpacity, Text, ActivityIndicator } from "react-native";
-import { theme } from "../theme";
+import { theme } from "../theme/theme";
 
 export default function PrimaryButton({ title, onPress, loading, style }) {
   return (
@@ -8,15 +8,20 @@ export default function PrimaryButton({ title, onPress, loading, style }) {
       disabled={loading}
       activeOpacity={0.85}
       style={[{
-        backgroundColor: theme.primary, height: 58, borderRadius: theme.radius,
+        backgroundColor: loading ? "#94A3B8" : theme.primary,
+        height: 56, borderRadius: theme.radius,
         alignItems: "center", justifyContent: "center",
-        opacity: loading ? 0.75 : 1,
+        shadowColor: theme.primary, shadowOpacity: 0.3,
+        shadowOffset: { width: 0, height: 8 }, shadowRadius: 14, elevation: 6,
       }, style]}
     >
       {loading ? (
         <ActivityIndicator color="#fff" />
       ) : (
-        <Text style={{ fontFamily: theme.font.medium, color: "#fff", fontSize: 17 }}>
+        <Text style={{
+          fontFamily: theme.font.semibold, color: "#fff",
+          fontSize: 17, letterSpacing: 0.3,
+        }}>
           {title}
         </Text>
       )}

@@ -84,7 +84,7 @@ const TopNav = () => {
                         </TouchableOpacity>
                 </View>
 
-                {/* {!isLoggedIn && !authLoading && (
+                { /*!isLoggedIn && !authLoading && (
                     <View style={{
                         flexDirection: 'row', backgroundColor: '#f8fafc',
                         borderRadius: 15, overflow: 'hidden',

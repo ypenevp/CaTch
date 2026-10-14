@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Text, View, TextInput, ScrollView } from "react-native";
 import { handleVerify } from "../services/auth";
-import { theme } from "../theme";
+import { theme } from "../theme/theme";
 import AuthHeader from "./AuthHeader";
 import PrimaryButton from "./PrimaryButton";
 import ErrorBox from "./ErrorBox";
@@ -41,6 +41,7 @@ export default function VerifyCode({ onSuccess, onBack, email }) {
       showsVerticalScrollIndicator={false}
     >
       <AuthHeader
+        icon="mail-unread-outline"
         title="Verify your email"
         subtitle={email
           ? `We sent a 6-digit code to ${email}. Enter it below to continue.`
@@ -54,17 +55,26 @@ export default function VerifyCode({ onSuccess, onBack, email }) {
         <View style={{ flexDirection: "row", gap: 10 }}>
           {Array.from({ length: CODE_LENGTH }).map((_, i) => {
             const isActive = focused && i === Math.min(code.length, CODE_LENGTH - 1);
+            const isFilled = !!code[i];
             return (
               <View
                 key={i}
                 style={{
-                  flex: 1, height: 62, borderRadius: 16,
-                  backgroundColor: theme.surface,
+                  flex: 1, height: 62, borderRadius: theme.radius,
+                  backgroundColor: isFilled ? theme.primarySoft : theme.surface,
                   alignItems: "center", justifyContent: "center",
-                  borderWidth: 1, borderColor: isActive ? theme.text : "transparent",
+                  borderWidth: 1.5,
+                  borderColor: isActive
+                    ? theme.primary
+                    : isFilled ? theme.primaryBorder : theme.border,
+                  shadowColor: theme.primary, shadowOpacity: isActive ? 0.18 : 0,
+                  shadowOffset: { width: 0, height: 4 }, shadowRadius: 8,
                 }}
               >
-                <Text style={{ fontFamily: theme.font.medium, fontSize: 24, color: theme.text }}>
+                <Text style={{
+                  fontFamily: theme.font.semibold, fontSize: 24,
+                  color: theme.primaryDark,
+                }}>
                   {code[i] ?? ""}
                 </Text>
               </View>

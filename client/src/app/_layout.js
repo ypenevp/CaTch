@@ -14,7 +14,7 @@ import Login from "@/components/logIn";
 import SignUp from "@/components/signUp";
 import VerifyCode from "@/components/verify";
 import Success from "@/components/success";
-import { theme } from "../theme";
+import { theme } from "../theme/theme";
 
 import useUIStore from '../store/UIStore.js';
 
