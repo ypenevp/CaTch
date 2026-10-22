@@ -13,6 +13,8 @@ import TopNav from "@/components/topNav";
 import Login from "@/components/logIn";
 import SignUp from "@/components/signUp";
 import VerifyCode from "@/components/verify";
+import ForgotPassword from "@/components/forgotPassword";
+import ResetPassword from "@/components/resetPassword";
 import Success from "@/components/success";
 import { theme } from "../theme/theme";
 
@@ -63,6 +65,12 @@ export default function Layout() {
       >
         {screen === 'success' ? (
           <Success onDone={closeAll} />
+        ) : screen === 'resetSuccess' ? (
+          <Success
+            title="Password updated"
+            subtitle="Your password has been changed. Log in with your new password to continue."
+            onDone={() => setScreen('login')}
+          />
         ) : (
           <SafeAreaView style={{ flex: 1, backgroundColor: theme.bg }}>
             <KeyboardAvoidingView
@@ -74,6 +82,23 @@ export default function Layout() {
                   onSignUpPress={() => setScreen('signup')}
                   onLoginSuccess={closeAll}
                   onClose={closeAll}
+                  onForgotPress={() => setScreen('forgot')}
+                />
+              )}
+              {screen === 'forgot' && (
+                <ForgotPassword
+                  onBack={() => setScreen('login')}
+                  onCodeSent={(email) => {
+                    setPendingEmail(email);
+                    setScreen('reset');
+                  }}
+                />
+              )}
+              {screen === 'reset' && (
+                <ResetPassword
+                  email={pendingEmail}
+                  onBack={() => setScreen('forgot')}
+                  onSuccess={() => setScreen('resetSuccess')}
                 />
               )}
               {screen === 'signup' && (

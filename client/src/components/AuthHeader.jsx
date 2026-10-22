@@ -35,7 +35,7 @@ export default function AuthHeader({ icon, title, subtitle, onBack }) {
 
         <Text style={{
           fontFamily: theme.font.semibold, fontSize: 30, color: theme.text,
-          textAlign: "center",
+          textAlign: "center", marginTop: 10
         }}>
           {title}
         </Text>

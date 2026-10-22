@@ -4,7 +4,11 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { theme } from "../theme/theme";
 import PrimaryButton from "./PrimaryButton";
 
-export default function Success({ onDone }) {
+export default function Success({
+  onDone,
+  title = "Account verified",
+  subtitle = "Your account is ready. Log in to connect your bracelet and start monitoring.",
+}) {
   const insets = useSafeAreaInsets();
 
   return (
@@ -40,13 +44,13 @@ export default function Success({ onDone }) {
         </View>
 
         <Text style={{ fontFamily: theme.font.semibold, fontSize: 28, color: theme.text }}>
-          Account verified
+          {title}
         </Text>
         <Text style={{
           fontFamily: theme.font.regular, fontSize: 15, lineHeight: 22,
           color: theme.textMuted, textAlign: "center", marginTop: 10, marginBottom: 28,
         }}>
-          Your account is ready. Log in to connect your bracelet and start monitoring.
+          {subtitle}
         </Text>
 
         <PrimaryButton title="Continue" onPress={onDone} style={{ alignSelf: "stretch" }} />
