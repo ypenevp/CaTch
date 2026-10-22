@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { ScrollView } from "react-native";
 import { handleVerify } from "../services/auth";
+import { theme } from "../theme/theme";
 import AuthHeader from "./AuthHeader";
 import PrimaryButton from "./PrimaryButton";
 import ErrorBox from "./ErrorBox";
@@ -10,15 +11,17 @@ const CODE_LENGTH = 6;
 
 export default function VerifyCode({ onSuccess, onBack, email }) {
   const [error, setError] = useState("");
+  const [codeError, setCodeError] = useState("");
   const [code, setCode] = useState("");
   const [loading, setLoading] = useState(false);
 
   const onVerifyPress = async () => {
     setError("");
     if (code.length < CODE_LENGTH) {
-      setError("Please enter the 6-digit verification code.");
+      setCodeError("Enter all 6 digits.");
       return;
     }
+    setCodeError("");
     if (!email) {
       setError("Email is required for verification.");
       return;
@@ -35,7 +38,7 @@ export default function VerifyCode({ onSuccess, onBack, email }) {
 
   return (
     <ScrollView
-      contentContainerStyle={{ flexGrow: 1, paddingHorizontal: 24, paddingBottom: 24 }}
+      contentContainerStyle={{ flexGrow: 1, paddingHorizontal: theme.space.xl, paddingBottom: theme.space.xl }}
       keyboardShouldPersistTaps="handled"
       showsVerticalScrollIndicator={false}
     >
@@ -50,7 +53,7 @@ export default function VerifyCode({ onSuccess, onBack, email }) {
 
       <ErrorBox message={error} />
 
-      <CodeInput value={code} onChangeText={setCode} length={CODE_LENGTH} autoFocus />
+      <CodeInput value={code} onChangeText={setCode} length={CODE_LENGTH} autoFocus error={codeError} />
 
       <PrimaryButton title="Verify" onPress={onVerifyPress} loading={loading} />
     </ScrollView>

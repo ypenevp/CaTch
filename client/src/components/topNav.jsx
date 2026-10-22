@@ -1,16 +1,20 @@
 import React, { useRef, useEffect } from 'react';
 import {
-    View, Text, Image, Animated, TouchableOpacity, StatusBar,
+    View, Text, Animated, TouchableOpacity, StatusBar,
 } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { useRouter, usePathname } from 'expo-router';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import useAuthStore from '../store/AuthStore.js';
 import useUIStore from '../store/UIStore.js';
+import { theme } from '../theme/theme';
 
-const BLUE = '#2563eb';
+const BAR_HEIGHT = 56;
 
 const TopNav = () => {
     const router = useRouter();
     const pathname = usePathname();
+    const insets = useSafeAreaInsets();
 
     const authUser = useAuthStore((state) => state.user);
     const authLoading = useAuthStore((state) => state.isLoading);
@@ -33,72 +37,71 @@ const TopNav = () => {
 
     const handleLogout = async () => {
         await logout();
-        router.push('/');
+        router.replace('/');
     };
 
     return (
         <>
             <StatusBar barStyle="dark-content" />
             <View style={{
-                width: '100%', height: 110, backgroundColor: '#fff',
+                width: '100%', height: BAR_HEIGHT + insets.top, paddingTop: insets.top,
+                paddingHorizontal: theme.space.lg, backgroundColor: theme.surface,
                 flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-                shadowColor: '#000', shadowOffset: { width: 0, height: 4 },
-                shadowOpacity: 0.08, shadowRadius: 12, elevation: 8,
-                zIndex: 50, paddingBottom: 4, paddingTop: 50, overflow: 'visible',
+                ...theme.shadow.bar, shadowOffset: { width: 0, height: 4 }, zIndex: 50,
             }}>
                 <TouchableOpacity
                     onPress={() => router.push('/')}
                     activeOpacity={0.8}
-                    style={{ paddingLeft: 4, paddingRight: 12 }}
+                    accessibilityRole="link"
+                    accessibilityLabel="Home"
                 >
-                    <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                        <View style={{ alignItems: 'center' }}>
-                            <Text style={{ fontSize: 18, fontWeight: 'bold', color: BLUE, marginBottom: 6, marginLeft: 6 }}>
-                                CaTch
-                            </Text>
-                            <Animated.View style={{
-                                height: 2, width: '85%', borderRadius: 1,
-                                backgroundColor: BLUE, marginTop: 2,
-                                transform: [{ scaleX: homeAnim }],
-                            }} />
-                        </View>
+                    <View style={{ alignItems: 'center' }}>
+                        <Text style={{ fontFamily: theme.font.semibold, fontSize: theme.size.xl, color: theme.primary }}>
+                            CaTch
+                        </Text>
+                        <Animated.View style={{
+                            height: 2, width: '100%', borderRadius: 1,
+                            backgroundColor: theme.primary, marginTop: 4,
+                            transform: [{ scaleX: homeAnim }],
+                        }} />
                     </View>
                 </TouchableOpacity>
 
                 {!isLoggedIn && !authLoading && (
-                    <View style={{
-                        flexDirection: 'row', backgroundColor: '#f8fafc',
-                        borderRadius: 15, overflow: 'hidden',
-                        borderWidth: 2, borderColor: BLUE, marginBottom: 7, marginRight: 20,
-                    }}>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: theme.space.xs }}>
                         <TouchableOpacity
                             onPress={openLogin}
-                            style={{ paddingHorizontal: 12, paddingVertical: 6, backgroundColor: '#fff' }}
+                            activeOpacity={0.7}
+                            accessibilityRole="button"
+                            style={{ height: 40, paddingHorizontal: theme.space.md, justifyContent: 'center' }}
                         >
-                            <Text style={{ fontSize: 14, fontWeight: '600', color: BLUE }}>Log In</Text>
+                            <Text style={{ fontFamily: theme.font.semibold, fontSize: theme.size.sm, color: theme.primary }}>Log in</Text>
                         </TouchableOpacity>
                         <TouchableOpacity
                             onPress={openSignup}
-                            style={{ paddingHorizontal: 12, paddingVertical: 6, backgroundColor: BLUE }}
+                            activeOpacity={0.85}
+                            accessibilityRole="button"
+                            style={{
+                                height: 40, paddingHorizontal: theme.space.lg, justifyContent: 'center',
+                                borderRadius: 20, backgroundColor: theme.primary,
+                            }}
                         >
-                            <Text style={{ fontSize: 14, fontWeight: '600', color: '#fff' }}>Sign Up</Text>
+                            <Text style={{ fontFamily: theme.font.semibold, fontSize: theme.size.sm, color: theme.onPrimary }}>Sign up</Text>
                         </TouchableOpacity>
                     </View>
                 )}
 
                 {isLoggedIn && (
-                    <View style={{ alignItems: 'center', gap: 4, marginRight: 20, marginBottom: 7 }}>
-                        <TouchableOpacity
-                            onPress={handleLogout}
-                            activeOpacity={0.8}
-                            style={{
-                                paddingHorizontal: 12, paddingVertical: 6, backgroundColor: '#ef4444',
-                                borderRadius: 15, borderWidth: 2, borderColor: '#ef4444',
-                            }}
-                        >
-                            <Text style={{ fontSize: 14, fontWeight: '600', color: '#fff' }}>Log Out</Text>
-                        </TouchableOpacity>
-                    </View>
+                    <TouchableOpacity
+                        onPress={handleLogout}
+                        activeOpacity={0.7}
+                        hitSlop={8}
+                        accessibilityRole="button"
+                        accessibilityLabel="Log out"
+                        style={{ width: 40, height: 40, alignItems: 'center', justifyContent: 'center' }}
+                    >
+                        <Ionicons name="log-out-outline" size={26} color={theme.textMuted} />
+                    </TouchableOpacity>
                 )}
             </View>
         </>

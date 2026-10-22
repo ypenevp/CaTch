@@ -6,6 +6,7 @@ import AuthHeader from "./AuthHeader";
 import AuthInput from "./AuthInput";
 import PrimaryButton from "./PrimaryButton";
 import ErrorBox from "./ErrorBox";
+import Banner from "./Banner";
 import CodeInput from "./CodeInput";
 
 const CODE_LENGTH = 6;
@@ -14,6 +15,7 @@ export default function ResetPassword({ email, onBack, onSuccess }) {
   const [code, setCode] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
+  const [fieldErrors, setFieldErrors] = useState({});
   const [error, setError] = useState("");
   const [info, setInfo] = useState("");
   const [loading, setLoading] = useState(false);
@@ -22,22 +24,15 @@ export default function ResetPassword({ email, onBack, onSuccess }) {
   const onResetPress = async () => {
     setError("");
     setInfo("");
-    if (code.length < CODE_LENGTH) {
-      setError("Please enter the 6-digit reset code.");
-      return;
-    }
-    if (!newPassword || !confirmPassword) {
-      setError("Please fill in all fields.");
-      return;
-    }
-    if (newPassword.length < 8 || newPassword.length > 20) {
-      setError("Password must be between 8 and 20 characters.");
-      return;
-    }
-    if (newPassword !== confirmPassword) {
-      setError("Passwords do not match.");
-      return;
-    }
+    const errors = {};
+    if (code.length < CODE_LENGTH) errors.code = "Enter all 6 digits.";
+    if (!newPassword) errors.newPassword = "Create a new password.";
+    else if (newPassword.length < 8 || newPassword.length > 20) errors.newPassword = "Password must be 8–20 characters.";
+    if (!confirmPassword) errors.confirmPassword = "Confirm your new password.";
+    else if (newPassword !== confirmPassword) errors.confirmPassword = "Passwords do not match.";
+    setFieldErrors(errors);
+    if (Object.keys(errors).length) return;
+
     setLoading(true);
     const result = await handleResetPassword({ email, code, newPassword, confirmPassword });
     setLoading(false);
@@ -64,7 +59,7 @@ export default function ResetPassword({ email, onBack, onSuccess }) {
 
   return (
     <ScrollView
-      contentContainerStyle={{ flexGrow: 1, paddingHorizontal: 24, paddingBottom: 24 }}
+      contentContainerStyle={{ flexGrow: 1, paddingHorizontal: theme.space.xl, paddingBottom: theme.space.xl }}
       keyboardShouldPersistTaps="handled"
       showsVerticalScrollIndicator={false}
     >
@@ -75,21 +70,9 @@ export default function ResetPassword({ email, onBack, onSuccess }) {
       />
 
       <ErrorBox message={error} />
+      <Banner message={info} variant="success" />
 
-      {!!info && (
-        <View style={{
-          flexDirection: "row", alignItems: "center", gap: 10,
-          backgroundColor: theme.primarySoft, borderRadius: theme.radius,
-          borderWidth: 1, borderColor: theme.primaryBorder,
-          paddingHorizontal: 14, paddingVertical: 12, marginBottom: 16,
-        }}>
-          <Text style={{ flex: 1, fontFamily: theme.font.medium, fontSize: 14, color: theme.primaryDark }}>
-            {info}
-          </Text>
-        </View>
-      )}
-
-      <CodeInput value={code} onChangeText={setCode} length={CODE_LENGTH} />
+      <CodeInput value={code} onChangeText={setCode} length={CODE_LENGTH} error={fieldErrors.code} />
 
       <AuthInput
         label="New password"
@@ -99,27 +82,30 @@ export default function ResetPassword({ email, onBack, onSuccess }) {
         onChangeText={setNewPassword}
         autoComplete="password-new"
         secure
+        hint="8–20 characters"
+        error={fieldErrors.newPassword}
       />
       <AuthInput
-        label="Repeat new password"
+        label="Confirm new password"
         icon="lock-closed-outline"
         placeholder="Repeat your new password"
         value={confirmPassword}
         onChangeText={setConfirmPassword}
         secure
+        error={fieldErrors.confirmPassword}
       />
 
-      <View style={{ height: 10 }} />
+      <View style={{ height: theme.space.sm }} />
       <PrimaryButton title="Reset password" onPress={onResetPress} loading={loading} />
 
-      <View style={{ flexDirection: "row", justifyContent: "center", alignItems: "center", marginVertical: 24 }}>
-        <Text style={{ fontFamily: theme.font.regular, fontSize: 15, color: theme.textMuted }}>
+      <View style={{ flexDirection: "row", justifyContent: "center", alignItems: "center", marginVertical: theme.space.xl }}>
+        <Text style={{ fontFamily: theme.font.regular, fontSize: theme.size.md, color: theme.textMuted }}>
           Didn't get the code?{" "}
         </Text>
-        <TouchableOpacity onPress={onResendPress} disabled={resending} hitSlop={8}>
+        <TouchableOpacity onPress={onResendPress} disabled={resending} hitSlop={12} accessibilityRole="button">
           <Text style={{
-            fontFamily: theme.font.semibold, fontSize: 15,
-            color: resending ? theme.placeholder : theme.primary,
+            fontFamily: theme.font.semibold, fontSize: theme.size.md,
+            color: resending ? theme.textMuted : theme.primary,
           }}>
             {resending ? "Sending..." : "Resend"}
           </Text>

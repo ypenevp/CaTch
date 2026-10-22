@@ -9,15 +9,17 @@ import ErrorBox from "./ErrorBox";
 
 export default function ForgotPassword({ onBack, onCodeSent }) {
   const [email, setEmail] = useState("");
+  const [fieldError, setFieldError] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
   const onSendPress = async () => {
     setError("");
-    if (!email) {
-      setError("Please enter your email.");
+    if (!email.trim()) {
+      setFieldError("Enter your email.");
       return;
     }
+    setFieldError("");
     setLoading(true);
     const result = await handleForgotPassword({ email: email.trim() });
     setLoading(false);
@@ -30,7 +32,7 @@ export default function ForgotPassword({ onBack, onCodeSent }) {
 
   return (
     <ScrollView
-      contentContainerStyle={{ flexGrow: 1, paddingHorizontal: 24, paddingBottom: 24 }}
+      contentContainerStyle={{ flexGrow: 1, paddingHorizontal: theme.space.xl, paddingBottom: theme.space.xl }}
       keyboardShouldPersistTaps="handled"
       showsVerticalScrollIndicator={false}
     >
@@ -50,17 +52,18 @@ export default function ForgotPassword({ onBack, onCodeSent }) {
         onChangeText={setEmail}
         keyboardType="email-address"
         autoComplete="email"
+        error={fieldError}
       />
 
-      <View style={{ height: 10 }} />
+      <View style={{ height: theme.space.sm }} />
       <PrimaryButton title="Send code" onPress={onSendPress} loading={loading} />
 
-      <View style={{ flexDirection: "row", justifyContent: "center", alignItems: "center", marginVertical: 24 }}>
-        <Text style={{ fontFamily: theme.font.regular, fontSize: 15, color: theme.textMuted }}>
+      <View style={{ flexDirection: "row", justifyContent: "center", alignItems: "center", marginVertical: theme.space.xl }}>
+        <Text style={{ fontFamily: theme.font.regular, fontSize: theme.size.md, color: theme.textMuted }}>
           Remember your password?{" "}
         </Text>
-        <TouchableOpacity onPress={onBack} hitSlop={8}>
-          <Text style={{ fontFamily: theme.font.semibold, fontSize: 15, color: theme.primary }}>
+        <TouchableOpacity onPress={onBack} hitSlop={12} accessibilityRole="link">
+          <Text style={{ fontFamily: theme.font.semibold, fontSize: theme.size.md, color: theme.primary }}>
             Log in
           </Text>
         </TouchableOpacity>
