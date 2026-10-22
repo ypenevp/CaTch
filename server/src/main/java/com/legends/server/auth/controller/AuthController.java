@@ -64,6 +64,18 @@ public class AuthController {
         return ResponseEntity.status(HttpStatus.NO_CONTENT).build();
     }
 
+    @PostMapping("/forgot-password")
+    public ResponseEntity<Void> forgotPassword(@Valid @RequestBody ForgotPasswordRequest request) {
+        authService.requestPasswordReset(request);
+        return ResponseEntity.status(HttpStatus.NO_CONTENT).build();
+    }
+
+    @PostMapping("/reset-password")
+    public ResponseEntity<Void> resetPassword(@Valid @RequestBody ResetPasswordRequest request) {
+        authService.resetPassword(request);
+        return ResponseEntity.status(HttpStatus.NO_CONTENT).build();
+    }
+
     @GetMapping("/me")
     public ResponseEntity<UserDetailsResponse> getCurrentUser(@CurrentUser Long userId) {
         UserDetailsResponse response = authService.getCurrentUser(userId);
@@ -75,5 +87,12 @@ public class AuthController {
     public ResponseEntity<Page<UserDetailsResponse>> getAllUsers(@PageableDefault(size = 20, sort = "id", direction = Sort.Direction.ASC) Pageable pageable) {
         Page<UserDetailsResponse> response = authService.getAllUsers(pageable);
         return ResponseEntity.status(HttpStatus.OK).body(response);
+    }
+
+    @PatchMapping("/users/{targetId}/deactivate")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<Void> stopAccount(@PathVariable Long targetId) {
+        authService.stopUserAccount(targetId);
+        return ResponseEntity.noContent().build();
     }
 }

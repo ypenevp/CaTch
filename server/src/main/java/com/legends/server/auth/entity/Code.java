@@ -20,9 +20,13 @@ public class Code {
     private Long id;
 
     @ManyToOne
-    @JoinColumn(name = "user_id", nullable = false,  unique = true)
+    @JoinColumn(name = "user_id", nullable = false)
     @OnDelete(action = OnDeleteAction.CASCADE)
     private User user;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "purpose", nullable = false)
+    private VerificationCodePurpose purpose;
 
     @Column(name = "code", nullable = false, length = 255)
     private String code;

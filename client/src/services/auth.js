@@ -2,13 +2,15 @@
 //import AsyncStorage from "@react-native-async-storage/async-storage";
 //import { jwtDecode } from 'jwt-decode';
 
+const API_URL = process.env.EXPO_PUBLIC_API_URL
+
 export const handleSignUp = async ({ username, password, email}) => {
     try {
-        // console.log("API URL:", API_URL);
+        console.log("API URL:", API_URL);
 
         console.log("Signup data:", { username, email, password });
 
-        const response = await fetch(`http://192.168.100.5:7070/api/v1/auth/register`, {
+        const response = await fetch(`${API_URL}/api/v1/auth/register`, {
             method: "POST",
             headers: {
                 "Content-Type": "application/json",
@@ -51,9 +53,9 @@ export const handleSignUp = async ({ username, password, email}) => {
 
 export const handleVerify = async ({ code, email }) => {
     try {
-        // console.log("API URL:", API_URL);
+        console.log("API URL:", API_URL);
 
-        const response = await fetch(`http://192.168.100.5:7070/api/v1/auth/verify-email`, {
+        const response = await fetch(`${API_URL}/api/v1/auth/verify-email`, {
             method: "POST",
             headers: {
                 "Content-Type": "application/json",
@@ -92,8 +94,8 @@ export const handleVerify = async ({ code, email }) => {
 
 export const handleLogin = async ({ email, password }) => {
     try {
-        // console.log("API URL:", API_URL);
-        const response = await fetch(`http://192.168.100.5:7070/api/v1/auth/login`, {
+        console.log("API URL:", API_URL);
+        const response = await fetch(`${API_URL}/api/v1/auth/login`, {
             method: "POST",
             headers: {
                 "Content-Type": "application/json",

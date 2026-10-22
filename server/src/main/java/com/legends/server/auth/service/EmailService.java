@@ -27,9 +27,8 @@ public class EmailService {
     }
 
     public void sendVerificationEmail(String recipient, String rawCode) {
-        String template = loadTemplate();
+        String template = loadTemplate("templates/email-verification.html");
         String content = template.replace("{{VERIFICATION_CODE}}", rawCode);
-
         MimeMessage message = mailSender.createMimeMessage();
 
         try {
@@ -45,12 +44,31 @@ public class EmailService {
         }
     }
 
-    private String loadTemplate() {
+    public void sendPasswordResetEmail(String recipient, String rawCode) {
+
+        String template = loadTemplate("templates/password-reset.html");
+        String content = template.replace("{{PASSWORD_RESET_CODE}}", rawCode);
+        MimeMessage message = mailSender.createMimeMessage();
+
         try {
+            MimeMessageHelper helper = new MimeMessageHelper(message, false, StandardCharsets.UTF_8.name());
+            helper.setFrom(sender);
+            helper.setTo(recipient);
+            helper.setSubject("Reset your CaTch password");
+            helper.setText(content, true);
 
-            ClassPathResource resource = new ClassPathResource("templates/email-verification.html");
+            mailSender.send(message);
+        } catch (MessagingException | MailException exception) {
+            throw new EmailDeliveryException("Unable to send password reset email", exception);
+        }
+    }
 
-            return StreamUtils.copyToString(resource.getInputStream(), StandardCharsets.UTF_8);
+    private String loadTemplate(String path) {
+        try {
+            ClassPathResource resource = new ClassPathResource(path);
+            String result = new String(resource.getInputStream().readAllBytes(), StandardCharsets.UTF_8);
+
+            return result;
         } catch (IOException ex) {
             throw new EmailDeliveryException("Unable to load email template", ex);
         }
