@@ -24,18 +24,18 @@ export default function Success({
       }}>
         <View style={{
           width: 132, height: 132, borderRadius: 66,
-          backgroundColor: theme.primarySoft,
+          backgroundColor: "rgba(52, 167, 55, 0.12)",
           alignItems: "center", justifyContent: "center", marginBottom: 24,
         }}>
           <View style={{
             width: 106, height: 106, borderRadius: 53,
-            backgroundColor: theme.primaryTint,
+            backgroundColor: "rgba(52, 167, 55, 0.22)",
             alignItems: "center", justifyContent: "center",
           }}>
             <View style={{
               width: 80, height: 80, borderRadius: 40, backgroundColor: "#34a737",
               alignItems: "center", justifyContent: "center",
-              shadowColor: theme.primary, shadowOpacity: 0.35,
+              shadowColor: "#34a737", shadowOpacity: 0.4,
               shadowOffset: { width: 0, height: 8 }, shadowRadius: 14, elevation: 6,
             }}>
               <Ionicons name="checkmark" size={44} color="#fff" />
