@@ -65,26 +65,7 @@ const TopNav = () => {
                     </View>
                 </TouchableOpacity>
 
-                <View style={{
-                        flexDirection: 'row', backgroundColor: '#f8fafc',
-                        borderRadius: 15, overflow: 'hidden',
-                        borderWidth: 2, borderColor: BLUE, marginBottom: 7, marginRight: 20,
-                    }}>
-                        <TouchableOpacity
-                            onPress={openLogin}
-                            style={{ paddingHorizontal: 12, paddingVertical: 6, backgroundColor: '#fff' }}
-                        >
-                            <Text style={{ fontSize: 14, fontWeight: '600', color: BLUE }}>Log In</Text>
-                        </TouchableOpacity>
-                        <TouchableOpacity
-                            onPress={openSignup}
-                            style={{ paddingHorizontal: 12, paddingVertical: 6, backgroundColor: BLUE }}
-                        >
-                            <Text style={{ fontSize: 14, fontWeight: '600', color: '#fff' }}>Sign Up</Text>
-                        </TouchableOpacity>
-                </View>
-
-                { /*!isLoggedIn && !authLoading && (
+                {!isLoggedIn && !authLoading && (
                     <View style={{
                         flexDirection: 'row', backgroundColor: '#f8fafc',
                         borderRadius: 15, overflow: 'hidden',
@@ -103,9 +84,9 @@ const TopNav = () => {
                             <Text style={{ fontSize: 14, fontWeight: '600', color: '#fff' }}>Sign Up</Text>
                         </TouchableOpacity>
                     </View>
-                /* )} */}
+                )}
 
-                {/* isLoggedIn && (
+                {isLoggedIn && (
                     <View style={{ alignItems: 'center', gap: 4, marginRight: 20, marginBottom: 7 }}>
                         <TouchableOpacity
                             onPress={handleLogout}
@@ -118,7 +99,7 @@ const TopNav = () => {
                             <Text style={{ fontSize: 14, fontWeight: '600', color: '#fff' }}>Log Out</Text>
                         </TouchableOpacity>
                     </View>
-                ) */}
+                )}
             </View>
         </>
     );

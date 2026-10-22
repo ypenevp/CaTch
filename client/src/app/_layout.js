@@ -19,6 +19,7 @@ import Success from "@/components/success";
 import { theme } from "../theme/theme";
 
 import useUIStore from '../store/UIStore.js';
+import useAuthStore from '../store/AuthStore.js';
 
 export default function Layout() {
   const [fontsLoaded] = useFonts({
@@ -30,8 +31,13 @@ export default function Layout() {
   const isVisible = useUIStore((state) => state.modal !== null);
   const modal = useUIStore((state) => state.modal);
   const closeModal = useUIStore((state) => state.closeModal);
+  const checkToken = useAuthStore((state) => state.checkToken);
   const [screen, setScreen] = useState(null);
   const [pendingEmail, setPendingEmail] = useState("");
+
+  useEffect(() => {
+    checkToken();
+  }, []);
 
   useEffect(() => {
     if (modal === 'login') setScreen('login');

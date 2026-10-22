@@ -211,3 +211,60 @@ export const handleResetPassword = async ({ email, code, newPassword, confirmPas
         };
     }
 };
+
+
+export const handleRefresh = async ({ refreshToken }) => {
+    try {
+        const response = await fetch(`${API_URL}/api/v1/auth/refresh`, {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+            },
+            body: JSON.stringify({ refreshToken }),
+        });
+
+        const responseText = await response.text();
+
+        let data = {};
+        if (responseText) {
+            try {
+                data = JSON.parse(responseText);
+            } catch {
+                data = {};
+            }
+        }
+
+        return {
+            ok: response.ok,
+            data: response.ok ? data : { detail: data?.message || data?.detail || "Session expired" }
+        };
+    } catch (error) {
+        return {
+            ok: false,
+            data: { detail: `Network error: ${error.message}` }
+        };
+    }
+};
+
+
+export const handleLogout = async ({ refreshToken }) => {
+    try {
+        const response = await fetch(`${API_URL}/api/v1/auth/logout`, {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+            },
+            body: JSON.stringify({ refreshToken }),
+        });
+
+        return {
+            ok: response.ok,
+            data: { detail: response.ok ? "Logged out" : "Logout failed" }
+        };
+    } catch (error) {
+        return {
+            ok: false,
+            data: { detail: `Network error: ${error.message}` }
+        };
+    }
+};
