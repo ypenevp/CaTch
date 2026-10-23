@@ -13,3 +13,10 @@ REFRESH_EXPIRES_DAYS=
 #for email
 SUPPORT_EMAIL=
 APP_PASSWORD=
+
+#for MQTT
+MQTT_BROKER_URL=tcp://localhost:1883
+MQTT_USERNAME=
+MQTT_PASSWORD=
+MQTT_CLIENT_ID=catch-server
+MQTT_TOPIC=devices/+/measurements
