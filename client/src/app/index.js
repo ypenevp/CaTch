@@ -48,7 +48,6 @@ function Hero({ title, text, cta, ctaIcon, onPress, secondary, onSecondary }) {
         title={cta}
         icon={ctaIcon}
         onPress={onPress}
-        color={theme.accent}
         style={{ marginTop: theme.space.lg, height: 52 }}
       />
 
@@ -116,11 +115,11 @@ function SectionHeader({ title, count, action, onAction }) {
           style={{
             marginLeft: "auto", flexDirection: "row", alignItems: "center", gap: theme.space.xs,
             height: 36, paddingHorizontal: theme.space.md, borderRadius: 18,
-            backgroundColor: theme.accentSoft,
+            backgroundColor: theme.primarySoft,
           }}
         >
-          <MaterialCommunityIcons name="plus" size={18} color={theme.accent} />
-          <Text style={{ fontFamily: theme.font.semibold, fontSize: theme.size.sm, color: theme.accent }}>{action}</Text>
+          <MaterialCommunityIcons name="plus" size={18} color={theme.primary} />
+          <Text style={{ fontFamily: theme.font.semibold, fontSize: theme.size.sm, color: theme.primary }}>{action}</Text>
         </TouchableOpacity>
       )}
     </View>

@@ -13,9 +13,10 @@ export const theme = {
   primaryTint: '#DBEAFE',
   primaryBorder: '#BFDBFE',
 
-  accent: '#C2410C',
-  accentDark: '#9A3412',
-  accentSoft: '#FFF7ED',
+  accent: '#E11D48',
+  accentDark: '#BE123C',
+  accentLight: '#FB7185',
+  accentSoft: '#FFF1F2',
 
   success: '#16A34A',
   successText: '#15803D',

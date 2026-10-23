@@ -1,19 +1,17 @@
-import React, { useRef, useEffect } from 'react';
-import {
-    View, Text, Animated, TouchableOpacity, StatusBar,
-} from 'react-native';
+import React from 'react';
+import { View, Text, TouchableOpacity, StatusBar } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { useRouter, usePathname } from 'expo-router';
+import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import useAuthStore from '../store/AuthStore.js';
 import useUIStore from '../store/UIStore.js';
 import { theme } from '../theme/theme';
+import Logo from './Logo';
 
 const BAR_HEIGHT = 56;
 
 const TopNav = () => {
     const router = useRouter();
-    const pathname = usePathname();
     const insets = useSafeAreaInsets();
 
     const authUser = useAuthStore((state) => state.user);
@@ -23,17 +21,6 @@ const TopNav = () => {
     const openSignup = useUIStore((state) => state.openSignup);
 
     const isLoggedIn = !!authUser;
-    const isHome = pathname === '/';
-    const homeAnim = useRef(new Animated.Value(0)).current;
-
-    useEffect(() => {
-        Animated.spring(homeAnim, {
-            toValue: isHome ? 1 : 0,
-            useNativeDriver: true,
-            tension: 120,
-            friction: 8,
-        }).start();
-    }, [isHome]);
 
     const handleLogout = async () => {
         await logout();
@@ -55,16 +42,7 @@ const TopNav = () => {
                     accessibilityRole="link"
                     accessibilityLabel="Home"
                 >
-                    <View style={{ alignItems: 'center' }}>
-                        <Text style={{ fontFamily: theme.font.semibold, fontSize: theme.size.xl, color: theme.primary }}>
-                            CaTch
-                        </Text>
-                        <Animated.View style={{
-                            height: 2, width: '100%', borderRadius: 1,
-                            backgroundColor: theme.primary, marginTop: 4,
-                            transform: [{ scaleX: homeAnim }],
-                        }} />
-                    </View>
+                    <Logo size={30} />
                 </TouchableOpacity>
 
                 {!isLoggedIn && !authLoading && (
@@ -83,10 +61,11 @@ const TopNav = () => {
                             accessibilityRole="button"
                             style={{
                                 height: 40, paddingHorizontal: theme.space.lg, justifyContent: 'center',
-                                borderRadius: 20, backgroundColor: theme.primary,
+                                borderRadius: 20, borderWidth: 1.5, borderColor: theme.primaryBorder,
+                                backgroundColor: theme.surface,
                             }}
                         >
-                            <Text style={{ fontFamily: theme.font.semibold, fontSize: theme.size.sm, color: theme.onPrimary }}>Sign up</Text>
+                            <Text style={{ fontFamily: theme.font.semibold, fontSize: theme.size.sm, color: theme.primary }}>Sign up</Text>
                         </TouchableOpacity>
                     </View>
                 )}
