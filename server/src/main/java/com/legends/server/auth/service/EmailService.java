@@ -31,14 +31,7 @@ public class EmailService {
 
     public void sendVerificationEmail(String recipient, String rawCode) {
         String template = loadTemplate("templates/email-verification.html");
-        String content = template
-                .replace("{{VERIFICATION_CODE}}", rawCode)
-                .replace("{{EXPIRATION_MINUTES}}", String.valueOf(expirationMinutes));
-
-        for (int i = 0; i < rawCode.length(); i++) {
-            content = content.replace("{{CODE_DIGIT_" + (i + 1) + "}}", String.valueOf(rawCode.charAt(i)));
-        }
-
+        String content = fillCode(template.replace("{{VERIFICATION_CODE}}", rawCode), rawCode);
         MimeMessage message = mailSender.createMimeMessage();
 
         try {
@@ -47,8 +40,7 @@ public class EmailService {
             helper.setTo(recipient);
             helper.setSubject(rawCode + " is your CaTch code");
             helper.setText(content, true);
-            helper.addInline("catch-logo", "email-logo.png", new ClassPathResource("templates/images/email-logo.png"), "image/png");
-            helper.addInline("clock-icon", "email-clock.png", new ClassPathResource("templates/images/email-clock.png"), "image/png");
+            addBrandImages(helper);
 
             mailSender.send(message);
         } catch (MessagingException | MailException ex) {
@@ -59,20 +51,36 @@ public class EmailService {
     public void sendPasswordResetEmail(String recipient, String rawCode) {
 
         String template = loadTemplate("templates/password-reset.html");
-        String content = template.replace("{{PASSWORD_RESET_CODE}}", rawCode);
+        String content = fillCode(template.replace("{{PASSWORD_RESET_CODE}}", rawCode), rawCode);
         MimeMessage message = mailSender.createMimeMessage();
 
         try {
-            MimeMessageHelper helper = new MimeMessageHelper(message, false, StandardCharsets.UTF_8.name());
+            MimeMessageHelper helper = new MimeMessageHelper(message, MimeMessageHelper.MULTIPART_MODE_RELATED, StandardCharsets.UTF_8.name());
             helper.setFrom(sender);
             helper.setTo(recipient);
-            helper.setSubject("Reset your CaTch password");
+            helper.setSubject(rawCode + " is your CaTch password reset code");
             helper.setText(content, true);
+            addBrandImages(helper);
 
             mailSender.send(message);
         } catch (MessagingException | MailException exception) {
             throw new EmailDeliveryException("Unable to send password reset email", exception);
         }
+    }
+
+    private String fillCode(String template, String rawCode) {
+        String content = template.replace("{{EXPIRATION_MINUTES}}", String.valueOf(expirationMinutes));
+
+        for (int i = 0; i < rawCode.length(); i++) {
+            content = content.replace("{{CODE_DIGIT_" + (i + 1) + "}}", String.valueOf(rawCode.charAt(i)));
+        }
+
+        return content;
+    }
+
+    private void addBrandImages(MimeMessageHelper helper) throws MessagingException {
+        helper.addInline("catch-logo", "email-logo.png", new ClassPathResource("templates/images/email-logo.png"), "image/png");
+        helper.addInline("clock-icon", "email-clock.png", new ClassPathResource("templates/images/email-clock.png"), "image/png");
     }
 
     private String loadTemplate(String path) {
