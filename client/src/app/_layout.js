@@ -13,10 +13,13 @@ import TopNav from "@/components/topNav";
 import Login from "@/components/logIn";
 import SignUp from "@/components/signUp";
 import VerifyCode from "@/components/verify";
+import ForgotPassword from "@/components/forgotPassword";
+import ResetPassword from "@/components/resetPassword";
 import Success from "@/components/success";
 import { theme } from "../theme/theme";
 
 import useUIStore from '../store/UIStore.js';
+import useAuthStore from '../store/AuthStore.js';
 
 export default function Layout() {
   const [fontsLoaded] = useFonts({
@@ -28,8 +31,13 @@ export default function Layout() {
   const isVisible = useUIStore((state) => state.modal !== null);
   const modal = useUIStore((state) => state.modal);
   const closeModal = useUIStore((state) => state.closeModal);
+  const checkToken = useAuthStore((state) => state.checkToken);
   const [screen, setScreen] = useState(null);
   const [pendingEmail, setPendingEmail] = useState("");
+
+  useEffect(() => {
+    checkToken();
+  }, []);
 
   useEffect(() => {
     if (modal === 'login') setScreen('login');
@@ -63,6 +71,12 @@ export default function Layout() {
       >
         {screen === 'success' ? (
           <Success onDone={closeAll} />
+        ) : screen === 'resetSuccess' ? (
+          <Success
+            title="Password updated"
+            subtitle="Your password has been changed. Log in with your new password to continue."
+            onDone={() => setScreen('login')}
+          />
         ) : (
           <SafeAreaView style={{ flex: 1, backgroundColor: theme.bg }}>
             <KeyboardAvoidingView
@@ -74,6 +88,23 @@ export default function Layout() {
                   onSignUpPress={() => setScreen('signup')}
                   onLoginSuccess={closeAll}
                   onClose={closeAll}
+                  onForgotPress={() => setScreen('forgot')}
+                />
+              )}
+              {screen === 'forgot' && (
+                <ForgotPassword
+                  onBack={() => setScreen('login')}
+                  onCodeSent={(email) => {
+                    setPendingEmail(email);
+                    setScreen('reset');
+                  }}
+                />
+              )}
+              {screen === 'reset' && (
+                <ResetPassword
+                  email={pendingEmail}
+                  onBack={() => setScreen('forgot')}
+                  onSuccess={() => setScreen('resetSuccess')}
                 />
               )}
               {screen === 'signup' && (

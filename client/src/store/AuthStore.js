@@ -1,16 +1,36 @@
 import { create } from 'zustand'
 import AsyncStorage from '@react-native-async-storage/async-storage'
+import { handleRefresh, handleLogout } from '../services/auth.js'
 
-const useAuthStore = create((set) => ({
+const saveTokens = async ({ accessToken, refreshToken }) => {
+    await AsyncStorage.multiSet([
+        ['accessToken', accessToken],
+        ['refreshToken', refreshToken],
+    ])
+}
+
+const clearTokens = async () => {
+    await AsyncStorage.multiRemove(['accessToken', 'refreshToken'])
+}
+
+const useAuthStore = create((set, get) => ({
     user: null,
     isLoading: true,
 
     checkToken: async () => {
         try {
-            const token = await AsyncStorage.getItem('accessToken')
-            if (token) {
-                set({ user: { token } })
+            const refreshToken = await AsyncStorage.getItem('refreshToken')
+            if (!refreshToken) {
+                set({ user: null })
+                return
+            }
+
+            const result = await handleRefresh({ refreshToken })
+            if (result.ok) {
+                await saveTokens(result.data)
+                set({ user: result.data })
             } else {
+                await clearTokens()
                 set({ user: null })
             }
         } catch (error) {
@@ -23,18 +43,37 @@ const useAuthStore = create((set) => ({
 
     login: async (userData) => {
         try {
-            await AsyncStorage.setItem('accessToken', userData.accessToken)
+            await saveTokens(userData)
         } catch (e) {
-            console.error('Error saving token:', e)
+            console.error('Error saving tokens:', e)
         }
         set({ user: userData })
     },
 
+    refresh: async () => {
+        const refreshToken = get().user?.refreshToken
+        if (!refreshToken) return null
+
+        const result = await handleRefresh({ refreshToken })
+        if (result.ok) {
+            await saveTokens(result.data)
+            set({ user: result.data })
+            return result.data.accessToken
+        }
+
+        await clearTokens()
+        set({ user: null })
+        return null
+    },
+
     logout: async () => {
+        const refreshToken = get().user?.refreshToken
+        if (refreshToken) await handleLogout({ refreshToken })
+
         try {
-            await AsyncStorage.removeItem('accessToken')
+            await clearTokens()
         } catch (e) {
-            console.error('Error removing token:', e)
+            console.error('Error removing tokens:', e)
         }
         set({ user: null })
     },

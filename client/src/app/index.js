@@ -1,13 +1,10 @@
 import { ScrollView, Text, TouchableOpacity, View } from "react-native";
-import { MaterialCommunityIcons } from "@expo/vector-icons";
+import { MaterialCommunityIcons, FontAwesome6 } from "@expo/vector-icons";
 import BraceletArt from "@/components/BraceletArt";
-
-const BLUE = "#2563eb";
-const BLUE_LIGHT = "#eff6ff";
-const GREEN = "#16a34a";
-const GRAY = "#94a3b8";
-const ORANGE = "#f97316";
-const ORANGE_DARK = "#c2410c";
+import PrimaryButton from "@/components/PrimaryButton";
+import useAuthStore from "../store/AuthStore.js";
+import useUIStore from "../store/UIStore.js";
+import { theme } from "../theme/theme";
 
 const MOCK_USER = {
   username: "ivan_petrov",
@@ -20,136 +17,243 @@ const MOCK_DEVICES = [
   { id: "3", name: "Device #3", online: false},
 ];
 
-function AddDeviceSection({ onPress }) {
+const FEATURES = [
+  { icon: "heart-pulse", ...theme.metric.heart, title: "Heart rate", text: "Live pulse from your wrist" },
+  { icon: "water-percent", ...theme.metric.oxygen, title: "Blood oxygen", text: "SpO₂ checks through the day" },
+  { icon: "person-falling-burst", fa: true, ...theme.metric.fall, title: "Fall detection", text: "Alerts your contacts instantly" },
+];
+
+const card = {
+  backgroundColor: theme.surface, borderRadius: theme.radius,
+  borderWidth: 1, borderColor: theme.border, ...theme.shadow.card,
+};
+
+function Hero({ title, text, cta, ctaIcon, onPress, secondary, onSecondary }) {
   return (
-    <View style={{
-      backgroundColor: "#fff", padding: 16, elevation: 3,
-      shadowColor: "#1e3a8a", shadowOpacity: 0.12,
-      shadowOffset: { width: 0, height: 4 }, shadowRadius: 12,
-    }}>
-      <View style={{ flexDirection: "row", alignItems: "center", gap: 12 }}>
+    <View style={{ ...card, padding: theme.space.lg }}>
+      <View style={{ flexDirection: "row", alignItems: "center", gap: theme.space.md }}>
         <BraceletArt scale={0.85} />
 
         <View style={{ flex: 1 }}>
-          <Text style={{ fontSize: 16, fontWeight: "800", color: "#0f172a" }}>
-            Track your health with a smart bracelet
+          <Text accessibilityRole="header" style={{ fontFamily: theme.font.semibold, fontSize: theme.size.lg, lineHeight: 24, color: theme.text }}>
+            {title}
           </Text>
-          <Text style={{ fontSize: 13, color: "#475569", marginTop: 6, lineHeight: 19 }}>
-            Pulse, blood oxygen, fall detection, and more. Connect your bracelet to the app to monitor your health in real-time.
+          <Text style={{ fontFamily: theme.font.regular, fontSize: theme.size.sm, lineHeight: 20, color: theme.textMuted, marginTop: theme.space.sm }}>
+            {text}
           </Text>
-
-          <TouchableOpacity
-            onPress={onPress}
-            activeOpacity={0.85}
-            style={{
-              flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6,
-              height: 48, borderRadius: 4, backgroundColor: ORANGE, marginTop: 14,
-              borderBottomWidth: 4, borderBottomColor: ORANGE_DARK,
-              elevation: 6, shadowColor: ORANGE, shadowOpacity: 0.4,
-              shadowOffset: { width: 0, height: 4 }, shadowRadius: 8, borderRadius: 12,
-            }}
-          >
-            <MaterialCommunityIcons name="plus-circle" size={20} color="#fff" />
-            <Text style={{ color: "#fff", fontSize: 15, fontWeight: "800" }}>Add Device</Text>
-          </TouchableOpacity>
         </View>
+      </View>
+
+      <PrimaryButton
+        title={cta}
+        icon={ctaIcon}
+        onPress={onPress}
+        style={{ marginTop: theme.space.lg, height: 52 }}
+      />
+
+      {secondary && (
+        <TouchableOpacity
+          onPress={onSecondary}
+          hitSlop={8}
+          accessibilityRole="button"
+          style={{ alignSelf: "center", marginTop: theme.space.md, paddingVertical: theme.space.xs }}
+        >
+          <Text style={{ fontFamily: theme.font.semibold, fontSize: theme.size.sm, color: theme.primary }}>
+            {secondary}
+          </Text>
+        </TouchableOpacity>
+      )}
+    </View>
+  );
+}
+
+function FeatureRow({ feature }) {
+  const Icon = feature.fa ? FontAwesome6 : MaterialCommunityIcons;
+
+  return (
+    <View style={{ flexDirection: "row", alignItems: "center", gap: theme.space.md, paddingVertical: theme.space.md }}>
+      <View style={{
+        width: 44, height: 44, borderRadius: 12, backgroundColor: feature.bg,
+        alignItems: "center", justifyContent: "center",
+      }}>
+        <Icon name={feature.icon} size={feature.fa ? 18 : 22} color={feature.color} />
+      </View>
+      <View style={{ flex: 1 }}>
+        <Text style={{ fontFamily: theme.font.semibold, fontSize: theme.size.md, color: theme.text }}>{feature.title}</Text>
+        <Text style={{ fontFamily: theme.font.regular, fontSize: theme.size.sm, color: theme.textMuted, marginTop: 2 }}>{feature.text}</Text>
       </View>
     </View>
   );
 }
 
-function DeviceItem({ device }) {
-  const statusColor = device.online ? GREEN : GRAY;
-
+function SectionHeader({ title, count, action, onAction }) {
   return (
     <View style={{
-      flexDirection: "row", alignItems: "center", backgroundColor: "#fff", padding: 14, marginBottom: 10, gap: 12, elevation: 1,
-      shadowColor: "#000", shadowOpacity: 0.05,
-      shadowOffset: { width: 0, height: 1 }, shadowRadius: 4, borderRadius: 12,
+      flexDirection: "row", alignItems: "center",
+      marginTop: theme.space.xl, marginBottom: theme.space.md,
     }}>
+      <Text accessibilityRole="header" style={{ fontFamily: theme.font.semibold, fontSize: theme.size.lg, color: theme.text }}>
+        {title}
+      </Text>
+      {count !== undefined && (
+        <View style={{
+          backgroundColor: theme.primarySoft, borderRadius: 10,
+          paddingHorizontal: 10, paddingVertical: 2, marginLeft: theme.space.sm,
+        }}>
+          <Text style={{ fontFamily: theme.font.semibold, fontSize: theme.size.xs, color: theme.primary }}>
+            {count}
+          </Text>
+        </View>
+      )}
+
+      {action && (
+        <TouchableOpacity
+          onPress={onAction}
+          activeOpacity={0.8}
+          hitSlop={6}
+          accessibilityRole="button"
+          style={{
+            marginLeft: "auto", flexDirection: "row", alignItems: "center", gap: theme.space.xs,
+            height: 36, paddingHorizontal: theme.space.md, borderRadius: 18,
+            backgroundColor: theme.primarySoft,
+          }}
+        >
+          <MaterialCommunityIcons name="plus" size={18} color={theme.primary} />
+          <Text style={{ fontFamily: theme.font.semibold, fontSize: theme.size.sm, color: theme.primary }}>{action}</Text>
+        </TouchableOpacity>
+      )}
+    </View>
+  );
+}
+
+function DeviceItem({ device, onPress }) {
+  return (
+    <TouchableOpacity
+      onPress={onPress}
+      activeOpacity={0.8}
+      accessibilityRole="button"
+      accessibilityLabel={`${device.name}, ${device.online ? "online" : "offline"}`}
+      style={{
+        ...card, flexDirection: "row", alignItems: "center",
+        padding: 14, marginBottom: 10, gap: theme.space.md,
+      }}
+    >
       <View style={{
-        width: 46, height: 46, borderRadius: 12, backgroundColor: BLUE_LIGHT,
+        width: 46, height: 46, borderRadius: 12, backgroundColor: theme.primarySoft,
         alignItems: "center", justifyContent: "center",
       }}>
-        <MaterialCommunityIcons name="watch-variant" size={26} color={BLUE} />
+        <MaterialCommunityIcons name="watch-variant" size={26} color={theme.primary} />
       </View>
 
       <View style={{ flex: 1 }}>
-        <Text style={{ fontSize: 16, fontWeight: "700", color: "#0f172a" }}>{device.name}</Text>
+        <Text style={{ fontFamily: theme.font.semibold, fontSize: theme.size.md, color: theme.text }}>{device.name}</Text>
         <View style={{ flexDirection: "row", alignItems: "center", gap: 6, marginTop: 6 }}>
-          <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: statusColor }} />
-          <Text style={{ fontSize: 12, fontWeight: "600", color: statusColor }}>
+          <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: device.online ? theme.success : theme.placeholder }} />
+          <Text style={{ fontFamily: theme.font.medium, fontSize: theme.size.xs, color: device.online ? theme.successText : theme.textMuted }}>
             {device.online ? "Online" : "Offline"}
           </Text>
         </View>
       </View>
-    </View>
+
+      <MaterialCommunityIcons name="chevron-right" size={24} color={theme.placeholder} />
+    </TouchableOpacity>
   );
 }
 
 function AccountCard({ user }) {
   return (
-    <View style={{
-      flexDirection: "row", alignItems: "center", backgroundColor: "#fff", padding: 16, gap: 14, elevation: 2,
-      shadowColor: "#000", shadowOpacity: 0.06,
-      shadowOffset: { width: 0, height: 2 }, shadowRadius: 6,
-    }}>
+    <View style={{ ...card, flexDirection: "row", alignItems: "center", padding: theme.space.lg, gap: 14 }}>
       <View style={{
-        width: 56, height: 56, borderRadius: 28, backgroundColor: BLUE,
+        width: 56, height: 56, borderRadius: 28, backgroundColor: theme.primary,
         alignItems: "center", justifyContent: "center",
       }}>
-        <MaterialCommunityIcons name="account" size={32} color="#fff" />
+        <MaterialCommunityIcons name="account" size={32} color={theme.onPrimary} />
       </View>
       <View style={{ flex: 1 }}>
-        <Text style={{ fontSize: 12, color: GRAY, fontWeight: "600", textTransform: "uppercase" }}>
+        <Text style={{ fontFamily: theme.font.medium, fontSize: theme.size.xs, color: theme.textMuted, textTransform: "uppercase", letterSpacing: 0.5 }}>
           Account
         </Text>
-        <Text style={{ fontSize: 20, fontWeight: "700", color: "#0f172a", marginTop: 2 }}>
+        <Text style={{ fontFamily: theme.font.semibold, fontSize: theme.size.xl, color: theme.text, marginTop: 2 }}>
           {user.username}
         </Text>
-        {/* <View style={{
-          alignSelf: "flex-start", backgroundColor: BLUE_LIGHT, borderRadius: 10,
-          paddingHorizontal: 10, paddingVertical: 3, marginTop: 6,
-        }}>
-          <Text style={{ fontSize: 12, fontWeight: "700", color: BLUE }}>{user.role}</Text>
-        </View> */}
       </View>
     </View>
   );
 }
 
+function GuestHome() {
+  const openSignup = useUIStore((state) => state.openSignup);
+  const openLogin = useUIStore((state) => state.openLogin);
+
+  return (
+    <>
+      <Hero
+        title="Your health, always in sight"
+        text="Pair a CaTch bracelet to track your vitals and get help the moment you need it."
+        cta="Get started"
+        onPress={openSignup}
+        secondary="I already have an account"
+        onSecondary={openLogin}
+      />
+
+      <SectionHeader title="What CaTch tracks" />
+      <View style={{ ...card, paddingHorizontal: theme.space.lg, paddingVertical: theme.space.xs }}>
+        {FEATURES.map((feature, i) => (
+          <View key={feature.title} style={{ borderTopWidth: i ? 1 : 0, borderTopColor: theme.border }}>
+            <FeatureRow feature={feature} />
+          </View>
+        ))}
+      </View>
+    </>
+  );
+}
+
+function UserHome({ devices, onAddDevice }) {
+  if (!devices.length) {
+    return (
+      <Hero
+        title="Connect your first bracelet"
+        text="Pulse, blood oxygen, fall detection, and more. Pair your bracelet to start monitoring in real time."
+        cta="Add Device"
+        ctaIcon="add-circle"
+        onPress={onAddDevice}
+      />
+    );
+  }
+
+  return (
+    <>
+      <View style={{ marginTop: theme.space.lg }}>
+        <AccountCard user={MOCK_USER} />
+      </View>
+      
+      <SectionHeader
+        title="Connected Devices"
+        count={devices.length}
+        action="Add"
+        onAction={onAddDevice}
+      />
+
+      {devices.map((device) => (
+        <DeviceItem key={device.id} device={device} onPress={() => {}} />
+      ))}
+    </>
+  );
+}
+
 export default function Home() {
+  const isLoggedIn = useAuthStore((state) => !!state.user);
+  const isLoading = useAuthStore((state) => state.isLoading);
   const handleAddDevice = () => {};
 
   return (
     <ScrollView
-      style={{ flex: 1, backgroundColor: "#f8fafc" }}
-      contentContainerStyle={{ padding: 16, paddingBottom: 24 }}
+      style={{ flex: 1, backgroundColor: theme.bg }}
+      contentContainerStyle={{ padding: theme.space.lg, paddingBottom: theme.space.xl }}
     >
-      <AddDeviceSection onPress={handleAddDevice} />
-
-      <View style={{
-        flexDirection: "row", alignItems: "center",
-        marginTop: 24, marginBottom: 10,
-      }}>
-        <Text style={{ fontSize: 18, fontWeight: "700", color: "#0f172a" }}>
-          Connected Devices
-        </Text>
-        <Text style={{
-          fontSize: 13, fontWeight: "700", color: BLUE, backgroundColor: BLUE_LIGHT,
-          borderRadius: 10, paddingHorizontal: 10, paddingVertical: 2, marginLeft: 8,
-        }}>
-          {MOCK_DEVICES.length}
-        </Text>
-      </View>
-
-      {MOCK_DEVICES.map((device) => (
-        <DeviceItem key={device.id} device={device} />
-      ))}
-
-      <View style={{ marginTop: 14 }}>
-        <AccountCard user={MOCK_USER} />
-      </View>
+      {!isLoading && (isLoggedIn
+        ? <UserHome devices={MOCK_DEVICES} onAddDevice={handleAddDevice} />
+        : <GuestHome />)}
     </ScrollView>
   );
 }

@@ -2,20 +2,20 @@ import React, { useEffect, useRef } from 'react';
 import { View, TouchableOpacity, Animated } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useRouter, usePathname } from 'expo-router';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { theme } from '../theme/theme';
 
-const BLUE = '#2563eb';
-const INACTIVE = '#94a3b8';
-const RED = '#ef4444';
-const BAR_HEIGHT = 70;
+const BAR_HEIGHT = 64;
 
 const TABS = [
-    { name: 'Home', route: '', icon: 'home' },
-    { name: 'Panic', route: 'Panic', icon: 'bell', badge: true },
+    { name: 'Home', route: '', icon: 'home-outline', activeIcon: 'home' },
+    { name: 'Alerts', route: 'alerts', icon: 'bell-outline', activeIcon: 'bell' },
 ];
 
-export default function BottomNav() {
+export default function BottomNav({ unreadAlerts = 0 }) {
     const router = useRouter();
     const pathname = usePathname();
+    const insets = useSafeAreaInsets();
     const currentRoute = pathname.replace(/^\//, '');
 
     const anims = useRef(TABS.map(() => new Animated.Value(0))).current;
@@ -33,46 +33,49 @@ export default function BottomNav() {
 
     return (
         <View style={{
-            height: BAR_HEIGHT, flexDirection: 'row', backgroundColor: '#fff',
-            borderTopWidth: 1, borderTopColor: '#e2e8f0', elevation: 8,
-            shadowColor: '#000', shadowOpacity: 0.06,
-            shadowOffset: { width: 0, height: -3 }, shadowRadius: 8,
+            height: BAR_HEIGHT + insets.bottom, paddingBottom: insets.bottom,
+            flexDirection: 'row', backgroundColor: theme.surface,
+            borderTopWidth: 1, borderTopColor: theme.border,
+            ...theme.shadow.bar, shadowOffset: { width: 0, height: -3 },
         }}>
             {TABS.map((tab, i) => {
                 const isActive = tab.route === currentRoute;
-                const iconScale = anims[i].interpolate({ inputRange: [0, 1], outputRange: [1, 1.18] });
-                const dotScaleX = anims[i].interpolate({ inputRange: [0, 1], outputRange: [0.3, 1] });
-                const labelOpacity = anims[i].interpolate({ inputRange: [0, 1], outputRange: [0.55, 1] });
+                const color = isActive ? theme.primary : theme.textMuted;
+                const showBadge = tab.route === 'alerts' && unreadAlerts > 0;
+                const iconScale = anims[i].interpolate({ inputRange: [0, 1], outputRange: [1, 1.12] });
+                const indicatorScaleX = anims[i].interpolate({ inputRange: [0, 1], outputRange: [0.3, 1] });
 
                 return (
                     <TouchableOpacity
                         key={tab.route}
-                        style={{ flex: 1, alignItems: 'center', justifyContent: 'center', paddingVertical: 8 }}
+                        style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}
                         onPress={() => router.push('/' + tab.route)}
                         activeOpacity={0.7}
+                        accessibilityRole="tab"
+                        accessibilityLabel={tab.name}
+                        accessibilityState={{ selected: isActive }}
                     >
                         <Animated.View style={{ transform: [{ scale: iconScale }] }}>
-                            <MaterialCommunityIcons name={tab.icon} size={26} color={isActive ? BLUE : INACTIVE} />
-                            {tab.badge && (
+                            <MaterialCommunityIcons name={isActive ? tab.activeIcon : tab.icon} size={26} color={color} />
+                            {showBadge && (
                                 <View style={{
-                                    position: 'absolute', top: -3, right: -6, width: 15, height: 15,
-                                    borderRadius: 8, backgroundColor: RED, alignItems: 'center',
-                                    justifyContent: 'center', borderWidth: 1.5, borderColor: '#fff',
-                                }}>
-                                    <MaterialCommunityIcons name="exclamation-thick" size={9} color="#fff" />
-                                </View>
+                                    position: 'absolute', top: -2, right: -4, width: 12, height: 12,
+                                    borderRadius: 6, backgroundColor: theme.danger,
+                                    borderWidth: 2, borderColor: theme.surface,
+                                }} />
                             )}
                         </Animated.View>
                         <Animated.Text style={{
-                            fontSize: 11, fontWeight: isActive ? '700' : '500',
-                            marginTop: 2, color: isActive ? BLUE : INACTIVE, opacity: labelOpacity,
+                            fontFamily: isActive ? theme.font.semibold : theme.font.medium,
+                            fontSize: theme.size.xs, marginTop: 2, color,
                         }}>
                             {tab.name}
                         </Animated.Text>
                         <Animated.View style={{
-                            position: 'absolute', bottom: 6, width: 28, height: 3,
-                            borderRadius: 2, backgroundColor: BLUE,
-                            opacity: anims[i], transform: [{ scaleX: dotScaleX }],
+                            position: 'absolute', top: 0, width: 32, height: 3,
+                            borderBottomLeftRadius: 2, borderBottomRightRadius: 2,
+                            backgroundColor: theme.primary,
+                            opacity: anims[i], transform: [{ scaleX: indicatorScaleX }],
                         }} />
                     </TouchableOpacity>
                 );
