@@ -22,21 +22,33 @@ public class EmailService {
     @Value("${spring.mail.username}")
     private String sender;
 
+    @Value("${app.email.verification-expiration-minutes}")
+    private long expirationMinutes;
+
     public EmailService(JavaMailSender mailSender) {
         this.mailSender = mailSender;
     }
 
     public void sendVerificationEmail(String recipient, String rawCode) {
         String template = loadTemplate("templates/email-verification.html");
-        String content = template.replace("{{VERIFICATION_CODE}}", rawCode);
+        String content = template
+                .replace("{{VERIFICATION_CODE}}", rawCode)
+                .replace("{{EXPIRATION_MINUTES}}", String.valueOf(expirationMinutes));
+
+        for (int i = 0; i < rawCode.length(); i++) {
+            content = content.replace("{{CODE_DIGIT_" + (i + 1) + "}}", String.valueOf(rawCode.charAt(i)));
+        }
+
         MimeMessage message = mailSender.createMimeMessage();
 
         try {
-            MimeMessageHelper helper = new MimeMessageHelper(message, true, "UTF-8");
+            MimeMessageHelper helper = new MimeMessageHelper(message, MimeMessageHelper.MULTIPART_MODE_RELATED, "UTF-8");
             helper.setFrom(sender);
             helper.setTo(recipient);
-            helper.setSubject("Verify your CaTch email");
+            helper.setSubject(rawCode + " is your CaTch code");
             helper.setText(content, true);
+            helper.addInline("catch-logo", "email-logo.png", new ClassPathResource("templates/images/email-logo.png"), "image/png");
+            helper.addInline("clock-icon", "email-clock.png", new ClassPathResource("templates/images/email-clock.png"), "image/png");
 
             mailSender.send(message);
         } catch (MessagingException | MailException ex) {

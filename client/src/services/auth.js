@@ -268,3 +268,42 @@ export const handleLogout = async ({ refreshToken }) => {
         };
     }
 };
+
+export const handleResendCode = async ({ email }) => {
+    try {
+        const response = await fetch(`${API_URL}/api/v1/auth/resend-code`, {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+            },
+            body: JSON.stringify({ email }),
+        });
+
+        if (response.ok) {
+            return {
+                ok: true,
+                data: { detail: "A new code was sent to your email." }
+            };
+        } else {
+            const errorText = await response.text();
+            let detail = "Could not resend code.";
+            try {
+                const errorData = JSON.parse(errorText);
+                detail = errorData.message || errorData.detail || detail;
+            } catch {
+                detail = errorText || detail;
+            }
+            return {
+                ok: false,
+                status: response.status,
+                data: { detail }
+            };
+        }
+
+    } catch (error) {
+        return {
+            ok: false,
+            data: { detail: `Network error: ${error.message}` }
+        };
+    }
+};
