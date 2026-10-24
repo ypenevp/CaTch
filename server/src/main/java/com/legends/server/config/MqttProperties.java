@@ -2,7 +2,7 @@ package com.legends.server.config;
 
 import org.springframework.boot.context.properties.ConfigurationProperties;
 
-@ConfigurationProperties(prefix = "mqtt")
+@ConfigurationProperties(prefix = "mqtt") // extract all values form application.properties instead of spamming @Value
 public record MqttProperties(
         String brokerUrl,
         String username,
