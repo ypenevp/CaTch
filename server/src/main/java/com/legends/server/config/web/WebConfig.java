@@ -1,4 +1,4 @@
-package com.legends.server.config;
+package com.legends.server.config.web;
 
 import com.legends.server.security.CurrentUserArgumentResolver;
 import org.springframework.context.annotation.Configuration;

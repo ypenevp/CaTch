@@ -45,5 +45,8 @@ yarn-error.*
 
 client/**/example
 
+server/passwordfile
+server/aclfile
+
 client/ios/
 client/android/

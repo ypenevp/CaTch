@@ -6,36 +6,44 @@ import lombok.Getter;
 import lombok.Setter;
 
 import java.time.Instant;
-import java.util.Date;
 
 @Entity
 @Getter
 @Setter
 @Table(name = "devices")
 public class Device {
+
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    @Column(name = "id", nullable = false)
     private Long id;
 
-    @Column(name = "device_id", nullable = false, unique = true)
+    @Column(name = "device_id", nullable = false, unique = true, length = 64)
     private String deviceId;
 
-    @OneToOne
-    @JoinColumn(name = "user_id", nullable = false, unique = true)
-    private User user;
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false, length = 32)
+    private DeviceStatus status;
 
-    @Column(name = "is_activated", nullable = false)
-    private boolean isActivated;
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "owner_id")
+    private User owner;
 
-    @Column(name = "activated_on")
-    private Date activatedOn;
+    @Column(name = "claim_secret_hash", nullable = false, unique = true, length = 64)
+    private String claimSecretHash;
 
-    @Column(name = "last_seen")
-    private Instant lastSeen;
+    @Column(name = "created_at", nullable = false)
+    private Instant createdAt;
+
+    @Column(name = "claimed_at")
+    private Instant claimedAt;
 
     @PrePersist
     public void onCreate() {
-        this.isActivated = false;
+        if (createdAt == null) {
+            createdAt = Instant.now();
+        }
+        if (status == null) {
+            status = DeviceStatus.UNCLAIMED;
+        }
     }
 }
