@@ -1,18 +1,15 @@
 import { ActivityIndicator, ScrollView, Text, TouchableOpacity, View } from "react-native";
 import { MaterialCommunityIcons, FontAwesome6 } from "@expo/vector-icons";
+import { useIsFocused, useRouter } from "expo-router";
 import BraceletArt from "@/components/BraceletArt";
 import PrimaryButton from "@/components/PrimaryButton";
-import ErrorBox from "@/components/ErrorBox";
+import RetryBox from "@/components/RetryBox";
 import { useProfile } from "@/hooks/useProfile";
+import { useDevices } from "@/hooks/useDevices";
+import { formatLastSeen } from "@/utils/formatLastSeen";
 import useAuthStore from "../store/AuthStore.js";
 import useUIStore from "../store/UIStore.js";
 import { theme } from "../theme/theme";
-
-const MOCK_DEVICES = [
-  { id: "1", name: "Device #1", online: true},
-  { id: "2", name: "Device #2", online: true},
-  { id: "3", name: "Device #3", online: false},
-];
 
 const FEATURES = [
   { icon: "heart-pulse", ...theme.metric.heart, title: "Heart rate", text: "Live pulse from your wrist" },
@@ -124,12 +121,14 @@ function SectionHeader({ title, count, action, onAction }) {
 }
 
 function DeviceItem({ device, onPress }) {
+  const statusText = device.online ? "Online" : formatLastSeen(device.lastSeen);
+
   return (
     <TouchableOpacity
       onPress={onPress}
       activeOpacity={0.8}
       accessibilityRole="button"
-      accessibilityLabel={`${device.name}, ${device.online ? "online" : "offline"}`}
+      accessibilityLabel={`${device.deviceId}, ${statusText}`}
       style={{
         ...card, flexDirection: "row", alignItems: "center",
         padding: 14, marginBottom: 10, gap: theme.space.md,
@@ -143,11 +142,11 @@ function DeviceItem({ device, onPress }) {
       </View>
 
       <View style={{ flex: 1 }}>
-        <Text style={{ fontFamily: theme.font.semibold, fontSize: theme.size.md, color: theme.text }}>{device.name}</Text>
+        <Text numberOfLines={1} style={{ fontFamily: theme.font.semibold, fontSize: theme.size.md, color: theme.text }}>{device.deviceId}</Text>
         <View style={{ flexDirection: "row", alignItems: "center", gap: 6, marginTop: 6 }}>
           <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: device.online ? theme.success : theme.placeholder }} />
           <Text style={{ fontFamily: theme.font.medium, fontSize: theme.size.xs, color: device.online ? theme.successText : theme.textMuted }}>
-            {device.online ? "Online" : "Offline"}
+            {statusText}
           </Text>
         </View>
       </View>
@@ -161,24 +160,7 @@ function AccountCard() {
   const { data: profile, isLoading, error, refetch, isFetching } = useProfile();
 
   if (error) {
-    return (
-      <View style={{ ...card, padding: theme.space.lg }}>
-        <ErrorBox message={error.message} />
-        <TouchableOpacity
-          onPress={() => refetch()}
-          disabled={isFetching}
-          activeOpacity={0.7}
-          hitSlop={8}
-          accessibilityRole="button"
-          accessibilityState={{ busy: isFetching, disabled: isFetching }}
-          style={{ alignSelf: "center", marginTop: theme.space.md, paddingVertical: theme.space.xs }}
-        >
-          <Text style={{ fontFamily: theme.font.semibold, fontSize: theme.size.sm, color: theme.primary }}>
-            {isFetching ? "Retrying…" : "Try again"}
-          </Text>
-        </TouchableOpacity>
-      </View>
-    );
+    return <RetryBox message={error.message} onRetry={() => refetch()} busy={isFetching} />;
   }
 
   return (
@@ -237,14 +219,24 @@ function GuestHome() {
   );
 }
 
-function UserHome({ devices, onAddDevice }) {
+function UserHome({ onAddDevice }) {
+  const router = useRouter();
+  const isFocused = useIsFocused();
+  const { data: devices, isLoading, error, refetch, isFetching } = useDevices({ live: isFocused });
+
   return (
     <>
       <View style={{ marginTop: theme.space.lg }}>
         <AccountCard />
       </View>
 
-      {!devices.length ? (
+      {isLoading ? (
+        <ActivityIndicator color={theme.primary} style={{ marginTop: theme.space.xl }} />
+      ) : error ? (
+        <View style={{ marginTop: theme.space.lg }}>
+          <RetryBox message={error.message} onRetry={() => refetch()} busy={isFetching} />
+        </View>
+      ) : !devices.length ? (
         <View style={{ marginTop: theme.space.lg }}>
           <Hero
             title="Connect your first bracelet"
@@ -264,7 +256,11 @@ function UserHome({ devices, onAddDevice }) {
           />
 
           {devices.map((device) => (
-            <DeviceItem key={device.id} device={device} onPress={() => {}} />
+            <DeviceItem
+              key={device.id}
+              device={device}
+              onPress={() => router.push({ pathname: "/devices/[deviceId]", params: { deviceId: device.deviceId } })}
+            />
           ))}
         </>
       )}
@@ -275,7 +271,8 @@ function UserHome({ devices, onAddDevice }) {
 export default function Home() {
   const isLoggedIn = useAuthStore((state) => !!state.user);
   const isLoading = useAuthStore((state) => state.isLoading);
-  const handleAddDevice = () => {};
+  const router = useRouter();
+  const handleAddDevice = () => router.push("/add-device");
 
   return (
     <ScrollView
@@ -283,7 +280,7 @@ export default function Home() {
       contentContainerStyle={{ padding: theme.space.lg, paddingBottom: theme.space.xl }}
     >
       {!isLoading && (isLoggedIn
-        ? <UserHome devices={MOCK_DEVICES} onAddDevice={handleAddDevice} />
+        ? <UserHome onAddDevice={handleAddDevice} />
         : <GuestHome />)}
     </ScrollView>
   );
