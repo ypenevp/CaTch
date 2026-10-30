@@ -40,11 +40,6 @@ public class DeviceMeasurementService {
                 ? now
                 : Instant.ofEpochMilli(message.ts());
 
-        if (measuredAt.isBefore(now.minusSeconds(300))
-                || measuredAt.isAfter(now.plusSeconds(300))) {
-            return;
-        }
-
         DeviceMeasurement measurement = new DeviceMeasurement();
         measurement.setDevice(device);
         measurement.setMeasuredAt(measuredAt);
