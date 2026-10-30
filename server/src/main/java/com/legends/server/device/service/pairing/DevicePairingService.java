@@ -12,6 +12,8 @@ import com.legends.server.device.entity.DeviceStatus;
 import com.legends.server.device.repository.DeviceRepository;
 import com.legends.server.device.repository.DevicePairingRepository;
 import com.legends.server.device.util.DeviceSecretGenerator;
+import com.legends.server.exception.custom.AccessDeniedException;
+import com.legends.server.exception.custom.DuplicateResourceException;
 import com.legends.server.exception.custom.ResourceNotFoundException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -54,14 +56,26 @@ public class DevicePairingService {
             throw new ResourceNotFoundException("Device is not available for pairing");
         }
 
+        Instant now = Instant.now();
+        pairingRepository.findAllByDeviceAndStatus(device, DevicePairingStatus.PENDING)
+                .forEach(pairing -> {
+                    if (pairing.getExpiresAt().isBefore(now)) {
+                        pairingRepository.delete(pairing);
+                    } else {
+                        throw new DuplicateResourceException(
+                                "Device already has an active pairing"
+                        );
+                    }
+                });
+
         String token = DeviceSecretGenerator.generateToken(32);
         DevicePairing pairing = new DevicePairing();
         pairing.setUser(user);
         pairing.setDevice(device);
         pairing.setPairingTokenHash(DeviceSecretGenerator.sha256(token));
         pairing.setStatus(DevicePairingStatus.PENDING);
-        pairing.setCreatedAt(Instant.now());
-        pairing.setExpiresAt(Instant.now().plus(properties.pairingExpirationMinutes(), ChronoUnit.MINUTES));
+        pairing.setCreatedAt(now);
+        pairing.setExpiresAt(now.plus(properties.pairingExpirationMinutes(), ChronoUnit.MINUTES));
 
         return DevicePairingResponse.created(pairingRepository.save(pairing), token);
     }
@@ -74,7 +88,13 @@ public class DevicePairingService {
 
     @Transactional
     public void cancel(UUID pairingId, Long userId) {
-        DevicePairing pairing = findForUser(pairingId, userId);
+        DevicePairing pairing = pairingRepository.findById(pairingId)
+                .orElseThrow(() -> new ResourceNotFoundException("Pairing not found"));
+        if (!pairing.getUser().getId().equals(userId)) {
+            throw new AccessDeniedException(
+                    "You cannot cancel a pairing created by another user"
+            );
+        }
         if (pairing.getStatus() == DevicePairingStatus.PENDING) {
             pairing.setStatus(DevicePairingStatus.CANCELLED);
         }

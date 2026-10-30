@@ -23,42 +23,26 @@ public class DeviceController {
     }
 
     @GetMapping("/my")
-    public ResponseEntity<Page<DeviceResponse>> getMyDevices(
-            @CurrentUser Long userId,
-            @PageableDefault(size = 20, sort = "id", direction = Sort.Direction.DESC)
-            Pageable pageable
-    ) {
+    public ResponseEntity<Page<DeviceResponse>> getMyDevices(@CurrentUser Long userId, @PageableDefault(size = 20, sort = "id", direction = Sort.Direction.DESC) Pageable pageable) {
         Page<DeviceResponse> response = deviceService.getMyDevices(userId, pageable);
         return ResponseEntity.status(HttpStatus.OK).body(response);
     }
 
     @GetMapping("/{deviceId}")
-    public ResponseEntity<DeviceResponse> getDevice(
-            @PathVariable String deviceId,
-            @CurrentUser Long userId
-    ) {
+    public ResponseEntity<DeviceResponse> getDevice(@PathVariable String deviceId, @CurrentUser Long userId) {
         DeviceResponse response = deviceService.getDevice(deviceId, userId);
         return ResponseEntity.status(HttpStatus.OK).body(response);
     }
 
     @GetMapping("/{deviceId}/measurements/latest")
-    public ResponseEntity<DeviceMeasurementResponse> getLatestMeasurement(
-            @PathVariable String deviceId,
-            @CurrentUser Long userId
-    ) {
-        DeviceMeasurementResponse response =
-                deviceService.getLatestMeasurement(deviceId, userId);
+    public ResponseEntity<DeviceMeasurementResponse> getLatestMeasurement(@PathVariable String deviceId, @CurrentUser Long userId) {
+        DeviceMeasurementResponse response = deviceService.getLatestMeasurement(deviceId, userId);
         return ResponseEntity.status(HttpStatus.OK).body(response);
     }
 
     @GetMapping("/{deviceId}/measurements")
-    public ResponseEntity<Page<DeviceMeasurementResponse>> getMeasurements(
-            @PathVariable String deviceId,
-            @RequestParam(defaultValue = "120") int limit,
-            @CurrentUser Long userId
-    ) {
-        Page<DeviceMeasurementResponse> response =
-                deviceService.getMeasurements(deviceId, userId, limit);
+    public ResponseEntity<Page<DeviceMeasurementResponse>> getMeasurements(@PathVariable String deviceId, @RequestParam(defaultValue = "120") int limit, @CurrentUser Long userId) {
+        Page<DeviceMeasurementResponse> response = deviceService.getMeasurements(deviceId, userId, limit);
         return ResponseEntity.status(HttpStatus.OK).body(response);
     }
 }

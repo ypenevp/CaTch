@@ -11,6 +11,7 @@ import com.legends.server.device.entity.DeviceStatus;
 import com.legends.server.device.repository.DevicePairingRepository;
 import com.legends.server.device.repository.DeviceRepository;
 import com.legends.server.device.util.DeviceSecretGenerator;
+import com.legends.server.exception.custom.InvalidDeviceClaimException;
 import com.legends.server.exception.custom.ResourceNotFoundException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -42,12 +43,34 @@ public class DeviceClaimService {
                 .findByPairingTokenHash(DeviceSecretGenerator.sha256(request.pairingToken()))
                 .orElseThrow(() -> new ResourceNotFoundException("Pairing not found"));
 
-        if (device.getStatus() != DeviceStatus.UNCLAIMED
-                || pairing.getStatus() != DevicePairingStatus.PENDING
-                || pairing.getExpiresAt().isBefore(Instant.now())
-                || !pairing.getDevice().getDeviceId().equals(request.deviceId())
-                || !DeviceSecretGenerator.matches(request.claimSecret(), device.getClaimSecretHash())) {
-            throw new ResourceNotFoundException("Device claim is not valid");
+        if (device.getStatus() != DeviceStatus.UNCLAIMED) {
+            throw new InvalidDeviceClaimException(
+                    "Device cannot be claimed because it is already claimed"
+            );
+        }
+
+        if (pairing.getStatus() != DevicePairingStatus.PENDING) {
+            throw new InvalidDeviceClaimException(
+                    "Pairing request is no longer pending"
+            );
+        }
+
+        if (pairing.getExpiresAt().isBefore(Instant.now())) {
+            throw new InvalidDeviceClaimException(
+                    "Pairing request has expired"
+            );
+        }
+
+        if (!pairing.getDevice().getDeviceId().equals(request.deviceId())) {
+            throw new InvalidDeviceClaimException(
+                    "Pairing request does not belong to this device"
+            );
+        }
+
+        if (!DeviceSecretGenerator.matches(request.claimSecret(), device.getClaimSecretHash())) {
+            throw new InvalidDeviceClaimException(
+                    "The claim secret is invalid"
+            );
         }
 
         device.setOwner(pairing.getUser());

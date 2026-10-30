@@ -22,28 +22,19 @@ public class DevicePairingController {
     }
 
     @PostMapping
-    public ResponseEntity<DevicePairingResponse> create(
-            @Valid @RequestBody CreateDevicePairingRequest request,
-            @CurrentUser Long userId
-    ) {
+    public ResponseEntity<DevicePairingResponse> create(@Valid @RequestBody CreateDevicePairingRequest request, @CurrentUser Long userId) {
         DevicePairingResponse response = pairingService.create(request, userId);
         return ResponseEntity.status(HttpStatus.OK).body(response);
     }
 
     @GetMapping("/{pairingId}")
-    public ResponseEntity<DevicePairingResponse> get(
-            @PathVariable UUID pairingId,
-            @CurrentUser Long userId
-    ) {
+    public ResponseEntity<DevicePairingResponse> get(@PathVariable UUID pairingId, @CurrentUser Long userId) {
         DevicePairingResponse response = pairingService.get(pairingId, userId);
         return ResponseEntity.status(HttpStatus.OK).body(response);
     }
 
     @DeleteMapping("/{pairingId}")
-    public ResponseEntity<Void> cancel(
-            @PathVariable UUID pairingId,
-            @CurrentUser Long userId
-    ) {
+    public ResponseEntity<Void> cancel(@PathVariable UUID pairingId, @CurrentUser Long userId) {
         pairingService.cancel(pairingId, userId);
         return ResponseEntity.status(HttpStatus.NO_CONTENT).build();
     }
