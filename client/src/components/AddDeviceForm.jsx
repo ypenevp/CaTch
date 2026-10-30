@@ -4,24 +4,14 @@ import { theme } from "@/theme/theme";
 import AuthHeader from "@/components/AuthHeader";
 import AuthInput from "@/components/AuthInput";
 import PrimaryButton from "@/components/PrimaryButton";
-import ErrorBox from "@/components/ErrorBox";
-import { useCreatePairing } from "@/hooks/useDevices";
 
 const DEVICE_ID_PATTERN = /^[A-Za-z0-9_-]{8,64}$/;
 
-function pairingErrorMessage(error) {
-  if (!error) return null;
-  if (error.status === 409) return "This bracelet already has an active pairing. Try again in a few minutes.";
-  if (error.status === 404) return "No available bracelet with this ID. Check the ID and try again.";
-  return error.message;
-}
-
-export default function AddDeviceForm({ initialDeviceId = "", onBack, onPairingCreated }) {
-  const createPairing = useCreatePairing();
+export default function AddDeviceForm({ initialDeviceId = "", onBack, onSubmit }) {
   const [deviceId, setDeviceId] = useState(initialDeviceId);
   const [fieldErrors, setFieldErrors] = useState({});
 
-  const onSubmit = () => {
+  const handleSubmit = () => {
     const errors = {};
     const trimmedId = deviceId.trim();
     if (!trimmedId) errors.deviceId = "Enter the device ID.";
@@ -29,10 +19,7 @@ export default function AddDeviceForm({ initialDeviceId = "", onBack, onPairingC
     setFieldErrors(errors);
     if (Object.keys(errors).length) return;
 
-    createPairing.mutate(
-      { deviceId: trimmedId },
-      { onSuccess: (pairing) => onPairingCreated(pairing) }
-    );
+    onSubmit(trimmedId);
   };
 
   return (
@@ -48,8 +35,6 @@ export default function AddDeviceForm({ initialDeviceId = "", onBack, onPairingC
         onBack={onBack}
       />
 
-      <ErrorBox message={pairingErrorMessage(createPairing.error)} />
-
       <AuthInput
         label="Device ID"
         icon="barcode-outline"
@@ -59,11 +44,11 @@ export default function AddDeviceForm({ initialDeviceId = "", onBack, onPairingC
         error={fieldErrors.deviceId}
         hint="Letters, digits, - or _"
         returnKeyType="go"
-        onSubmitEditing={onSubmit}
+        onSubmitEditing={handleSubmit}
       />
 
       <View style={{ height: theme.space.sm }} />
-      <PrimaryButton title="Continue" onPress={onSubmit} loading={createPairing.isPending} />
+      <PrimaryButton title="Continue" onPress={handleSubmit} />
     </ScrollView>
   );
 }
