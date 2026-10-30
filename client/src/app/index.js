@@ -1,15 +1,12 @@
-import { ScrollView, Text, TouchableOpacity, View } from "react-native";
+import { ActivityIndicator, ScrollView, Text, TouchableOpacity, View } from "react-native";
 import { MaterialCommunityIcons, FontAwesome6 } from "@expo/vector-icons";
 import BraceletArt from "@/components/BraceletArt";
 import PrimaryButton from "@/components/PrimaryButton";
+import ErrorBox from "@/components/ErrorBox";
+import { useProfile } from "@/hooks/useProfile";
 import useAuthStore from "../store/AuthStore.js";
 import useUIStore from "../store/UIStore.js";
 import { theme } from "../theme/theme";
-
-const MOCK_USER = {
-  username: "ivan_petrov",
-  role: "USER",
-};
 
 const MOCK_DEVICES = [
   { id: "1", name: "Device #1", online: true},
@@ -160,7 +157,30 @@ function DeviceItem({ device, onPress }) {
   );
 }
 
-function AccountCard({ user }) {
+function AccountCard() {
+  const { data: profile, isLoading, error, refetch, isFetching } = useProfile();
+
+  if (error) {
+    return (
+      <View style={{ ...card, padding: theme.space.lg }}>
+        <ErrorBox message={error.message} />
+        <TouchableOpacity
+          onPress={() => refetch()}
+          disabled={isFetching}
+          activeOpacity={0.7}
+          hitSlop={8}
+          accessibilityRole="button"
+          accessibilityState={{ busy: isFetching, disabled: isFetching }}
+          style={{ alignSelf: "center", marginTop: theme.space.md, paddingVertical: theme.space.xs }}
+        >
+          <Text style={{ fontFamily: theme.font.semibold, fontSize: theme.size.sm, color: theme.primary }}>
+            {isFetching ? "Retrying…" : "Try again"}
+          </Text>
+        </TouchableOpacity>
+      </View>
+    );
+  }
+
   return (
     <View style={{ ...card, flexDirection: "row", alignItems: "center", padding: theme.space.lg, gap: 14 }}>
       <View style={{
@@ -173,9 +193,18 @@ function AccountCard({ user }) {
         <Text style={{ fontFamily: theme.font.medium, fontSize: theme.size.xs, color: theme.textMuted, textTransform: "uppercase", letterSpacing: 0.5 }}>
           Account
         </Text>
-        <Text style={{ fontFamily: theme.font.semibold, fontSize: theme.size.xl, color: theme.text, marginTop: 2 }}>
-          {user.username}
-        </Text>
+        {isLoading ? (
+          <ActivityIndicator color={theme.primary} style={{ alignSelf: "flex-start", marginTop: theme.space.sm }} />
+        ) : (
+          <>
+            <Text style={{ fontFamily: theme.font.semibold, fontSize: theme.size.xl, color: theme.text, marginTop: 2 }}>
+              {profile.username}
+            </Text>
+            <Text numberOfLines={1} style={{ fontFamily: theme.font.regular, fontSize: theme.size.sm, color: theme.textMuted, marginTop: 2 }}>
+              {profile.email}
+            </Text>
+          </>
+        )}
       </View>
     </View>
   );
@@ -209,34 +238,36 @@ function GuestHome() {
 }
 
 function UserHome({ devices, onAddDevice }) {
-  if (!devices.length) {
-    return (
-      <Hero
-        title="Connect your first bracelet"
-        text="Pulse, blood oxygen, fall detection, and more. Pair your bracelet to start monitoring in real time."
-        cta="Add Device"
-        ctaIcon="add-circle"
-        onPress={onAddDevice}
-      />
-    );
-  }
-
   return (
     <>
       <View style={{ marginTop: theme.space.lg }}>
-        <AccountCard user={MOCK_USER} />
+        <AccountCard />
       </View>
-      
-      <SectionHeader
-        title="Connected Devices"
-        count={devices.length}
-        action="Add"
-        onAction={onAddDevice}
-      />
 
-      {devices.map((device) => (
-        <DeviceItem key={device.id} device={device} onPress={() => {}} />
-      ))}
+      {!devices.length ? (
+        <View style={{ marginTop: theme.space.lg }}>
+          <Hero
+            title="Connect your first bracelet"
+            text="Pulse, blood oxygen, fall detection, and more. Pair your bracelet to start monitoring in real time."
+            cta="Add Device"
+            ctaIcon="add-circle"
+            onPress={onAddDevice}
+          />
+        </View>
+      ) : (
+        <>
+          <SectionHeader
+            title="Connected Devices"
+            count={devices.length}
+            action="Add"
+            onAction={onAddDevice}
+          />
+
+          {devices.map((device) => (
+            <DeviceItem key={device.id} device={device} onPress={() => {}} />
+          ))}
+        </>
+      )}
     </>
   );
 }

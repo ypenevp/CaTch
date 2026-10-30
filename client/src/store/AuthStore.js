@@ -1,6 +1,7 @@
 import { create } from 'zustand'
 import AsyncStorage from '@react-native-async-storage/async-storage'
 import { handleRefresh, handleLogout } from '../services/auth.js'
+import { queryClient } from '@/lib/queryClient'
 
 const saveTokens = async ({ accessToken, refreshToken }) => {
     await AsyncStorage.multiSet([
@@ -62,6 +63,7 @@ const useAuthStore = create((set, get) => ({
         }
 
         await clearTokens()
+        queryClient.clear()
         set({ user: null })
         return null
     },
@@ -75,6 +77,7 @@ const useAuthStore = create((set, get) => ({
         } catch (e) {
             console.error('Error removing tokens:', e)
         }
+        queryClient.clear()
         set({ user: null })
     },
 }))

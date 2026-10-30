@@ -47,3 +47,12 @@ client/**/example
 
 client/ios/
 client/android/
+
+CLAUDE.local.md
+.env
+_claude_setup_tmp/
+claude-code-setup.zip
+
+CLAUDE.md
+
+.claude/

@@ -8,6 +8,8 @@ import {
   Outfit_500Medium,
   Outfit_600SemiBold,
 } from "@expo-google-fonts/outfit";
+import { QueryClientProvider } from "@tanstack/react-query";
+import { queryClient, subscribeAppFocus } from "@/lib/queryClient";
 import BottomNav from "@/components/bottomNav";
 import TopNav from "@/components/topNav";
 import Login from "@/components/logIn";
@@ -39,6 +41,8 @@ export default function Layout() {
     checkToken();
   }, []);
 
+  useEffect(() => subscribeAppFocus(), []);
+
   useEffect(() => {
     if (modal === 'login') setScreen('login');
     else if (modal === 'signup') setScreen('signup');
@@ -55,79 +59,81 @@ export default function Layout() {
   if (!fontsLoaded) return null;
 
   return (
-    <View style={{ flex: 1 }}>
-      <TopNav />
+    <QueryClientProvider client={queryClient}>
       <View style={{ flex: 1 }}>
-        <Stack screenOptions={{ headerShown: false }} />
+        <TopNav />
+        <View style={{ flex: 1 }}>
+          <Stack screenOptions={{ headerShown: false }} />
+        </View>
+        <BottomNav />
+  
+        <Modal
+          visible={isVisible}
+          transparent
+          statusBarTranslucent
+          animationType="slide"
+          onRequestClose={closeAll}
+        >
+          {screen === 'success' ? (
+            <Success onDone={closeAll} />
+          ) : screen === 'resetSuccess' ? (
+            <Success
+              title="Password updated"
+              subtitle="Your password has been changed. Log in with your new password to continue."
+              onDone={() => setScreen('login')}
+            />
+          ) : (
+            <SafeAreaView style={{ flex: 1, backgroundColor: theme.bg }}>
+              <KeyboardAvoidingView
+                style={{ flex: 1 }}
+                behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+              >
+                {screen === 'login' && (
+                  <Login
+                    onSignUpPress={() => setScreen('signup')}
+                    onLoginSuccess={closeAll}
+                    onClose={closeAll}
+                    onForgotPress={() => setScreen('forgot')}
+                  />
+                )}
+                {screen === 'forgot' && (
+                  <ForgotPassword
+                    onBack={() => setScreen('login')}
+                    onCodeSent={(email) => {
+                      setPendingEmail(email);
+                      setScreen('reset');
+                    }}
+                  />
+                )}
+                {screen === 'reset' && (
+                  <ResetPassword
+                    email={pendingEmail}
+                    onBack={() => setScreen('forgot')}
+                    onSuccess={() => setScreen('resetSuccess')}
+                  />
+                )}
+                {screen === 'signup' && (
+                  <SignUp
+                    onLoginPress={() => setScreen('login')}
+                    onClose={closeAll}
+                    onShowVerify={(email) => {
+                      setPendingEmail(email);
+                      setScreen('verify');
+                    }}
+                  />
+                )}
+                {screen === 'verify' && (
+                  <VerifyCode
+                    email={pendingEmail}
+                    onBack={() => setScreen('signup')}
+                    onSuccess={() => setScreen('success')}
+                  />
+                )}
+              </KeyboardAvoidingView>
+            </SafeAreaView>
+          )}
+        </Modal>
       </View>
-      <BottomNav />
-
-      <Modal
-        visible={isVisible}
-        transparent
-        statusBarTranslucent
-        animationType="slide"
-        onRequestClose={closeAll}
-      >
-        {screen === 'success' ? (
-          <Success onDone={closeAll} />
-        ) : screen === 'resetSuccess' ? (
-          <Success
-            title="Password updated"
-            subtitle="Your password has been changed. Log in with your new password to continue."
-            onDone={() => setScreen('login')}
-          />
-        ) : (
-          <SafeAreaView style={{ flex: 1, backgroundColor: theme.bg }}>
-            <KeyboardAvoidingView
-              style={{ flex: 1 }}
-              behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-            >
-              {screen === 'login' && (
-                <Login
-                  onSignUpPress={() => setScreen('signup')}
-                  onLoginSuccess={closeAll}
-                  onClose={closeAll}
-                  onForgotPress={() => setScreen('forgot')}
-                />
-              )}
-              {screen === 'forgot' && (
-                <ForgotPassword
-                  onBack={() => setScreen('login')}
-                  onCodeSent={(email) => {
-                    setPendingEmail(email);
-                    setScreen('reset');
-                  }}
-                />
-              )}
-              {screen === 'reset' && (
-                <ResetPassword
-                  email={pendingEmail}
-                  onBack={() => setScreen('forgot')}
-                  onSuccess={() => setScreen('resetSuccess')}
-                />
-              )}
-              {screen === 'signup' && (
-                <SignUp
-                  onLoginPress={() => setScreen('login')}
-                  onClose={closeAll}
-                  onShowVerify={(email) => {
-                    setPendingEmail(email);
-                    setScreen('verify');
-                  }}
-                />
-              )}
-              {screen === 'verify' && (
-                <VerifyCode
-                  email={pendingEmail}
-                  onBack={() => setScreen('signup')}
-                  onSuccess={() => setScreen('success')}
-                />
-              )}
-            </KeyboardAvoidingView>
-          </SafeAreaView>
-        )}
-      </Modal>
-    </View>
+    </QueryClientProvider>
   );
 }
