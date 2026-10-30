@@ -5,7 +5,6 @@ import lombok.Getter;
 import lombok.Setter;
 
 import java.time.Instant;
-import java.util.Date;
 
 @Entity
 @Getter
@@ -15,14 +14,18 @@ public class DeviceMeasurement {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    @Column(name = "id", nullable = false)
     private Long id;
 
-    @ManyToOne
+    @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "device_id", nullable = false)
     private Device device;
 
-    // MPU6050
+    @Column(name = "measured_at", nullable = false)
+    private Instant measuredAt;
+
+    @Column(name = "received_at", nullable = false)
+    private Instant receivedAt;
+
     @Column(name = "accel_x")
     private Double accelX;
 
@@ -41,19 +44,9 @@ public class DeviceMeasurement {
     @Column(name = "gyro_z")
     private Double gyroZ;
 
-    // MAX30102
     @Column(name = "heart_rate")
     private Integer heartRate;
 
     @Column(name = "spo2")
     private Double spo2;
-
-    @Column(name = "recorded_at", nullable = false)
-
-    private Instant recordedAt;
-
-    @PrePersist
-    public void onCreate() {
-        this.recordedAt = Instant.now();
-    }
 }

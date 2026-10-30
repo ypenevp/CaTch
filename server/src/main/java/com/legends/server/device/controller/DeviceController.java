@@ -1,11 +1,9 @@
 package com.legends.server.device.controller;
 
-import com.legends.server.device.dto.request.DeviceActivationRequest;
-import com.legends.server.device.dto.request.DeviceRegisterRequest;
+import com.legends.server.device.dto.response.DeviceMeasurementResponse;
 import com.legends.server.device.dto.response.DeviceResponse;
 import com.legends.server.device.service.DeviceService;
 import com.legends.server.security.CurrentUser;
-import jakarta.validation.Valid;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
@@ -13,42 +11,38 @@ import org.springframework.data.web.PageableDefault;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
-import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
-
-import java.net.URI;
 
 @RestController
-@RequestMapping("/api/v1/device")
+@RequestMapping("/api/v1/devices")
 public class DeviceController {
+
     private final DeviceService deviceService;
 
     public DeviceController(DeviceService deviceService) {
         this.deviceService = deviceService;
     }
-    @PostMapping("/register")
-    public ResponseEntity<DeviceResponse> register(@Valid @RequestBody DeviceRegisterRequest request, @CurrentUser Long currentUserId) {
-        DeviceResponse response = deviceService.registerDevice(request, currentUserId);
-        URI location = ServletUriComponentsBuilder.fromCurrentRequest().path("/{id}").buildAndExpand(response.id()).toUri();
-        return ResponseEntity.status(HttpStatus.CREATED).location(location).body(response);
-    }
 
-    @PostMapping("/activate")
-    public ResponseEntity<Void> activate(@Valid @RequestBody DeviceActivationRequest request) {
-        deviceService.activateDevice(request.deviceCodeId());
-        return ResponseEntity.status(HttpStatus.OK).build();
+    @GetMapping("/my")
+    public ResponseEntity<Page<DeviceResponse>> getMyDevices(@CurrentUser Long userId, @PageableDefault(size = 20, sort = "id", direction = Sort.Direction.DESC) Pageable pageable) {
+        Page<DeviceResponse> response = deviceService.getMyDevices(userId, pageable);
+        return ResponseEntity.status(HttpStatus.OK).body(response);
     }
 
     @GetMapping("/{deviceId}")
-    public ResponseEntity<DeviceResponse> getDevice(@PathVariable String deviceId, @CurrentUser Long currentUserId) {
-        DeviceResponse response = deviceService.getDevice(deviceId, currentUserId);
+    public ResponseEntity<DeviceResponse> getDevice(@PathVariable String deviceId, @CurrentUser Long userId) {
+        DeviceResponse response = deviceService.getDevice(deviceId, userId);
         return ResponseEntity.status(HttpStatus.OK).body(response);
     }
 
-    @GetMapping("/my")
-    public ResponseEntity<Page<DeviceResponse>> getMyDevices(@CurrentUser Long currentUserId, @PageableDefault(size = 5, sort = "activatedOn", direction = Sort.Direction.DESC) Pageable pageable) {
-        Page<DeviceResponse> response = deviceService.getMyDevices(currentUserId, pageable);
+    @GetMapping("/{deviceId}/measurements/latest")
+    public ResponseEntity<DeviceMeasurementResponse> getLatestMeasurement(@PathVariable String deviceId, @CurrentUser Long userId) {
+        DeviceMeasurementResponse response = deviceService.getLatestMeasurement(deviceId, userId);
         return ResponseEntity.status(HttpStatus.OK).body(response);
     }
 
-
+    @GetMapping("/{deviceId}/measurements")
+    public ResponseEntity<Page<DeviceMeasurementResponse>> getMeasurements(@PathVariable String deviceId, @RequestParam(defaultValue = "120") int limit, @CurrentUser Long userId) {
+        Page<DeviceMeasurementResponse> response = deviceService.getMeasurements(deviceId, userId, limit);
+        return ResponseEntity.status(HttpStatus.OK).body(response);
+    }
 }

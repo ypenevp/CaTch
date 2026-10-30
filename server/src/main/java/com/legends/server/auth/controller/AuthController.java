@@ -93,6 +93,6 @@ public class AuthController {
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<Void> stopAccount(@PathVariable Long targetId) {
         authService.stopUserAccount(targetId);
-        return ResponseEntity.noContent().build();
+        return ResponseEntity.status(HttpStatus.NO_CONTENT).build();
     }
 }

@@ -1,4 +1,4 @@
-package com.legends.server.config;
+package com.legends.server.config.security;
 
 import com.legends.server.security.JwtAuthenticationFilter;
 import org.springframework.context.annotation.Bean;
@@ -50,6 +50,7 @@ public class SecurityConfig {
                         .requestMatchers("/api/v1/auth/logout").permitAll()
                         .requestMatchers("/api/v1/auth/forgot-password").permitAll()
                         .requestMatchers("/api/v1/auth/reset-password").permitAll()
+                        .requestMatchers("/api/v1/device-claims/claim").permitAll()
                         .anyRequest().authenticated()
                 )
                 .exceptionHandling(ex -> ex

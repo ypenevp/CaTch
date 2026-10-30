@@ -1,18 +1,16 @@
 #include "MPU6050.h"
 #include <Wire.h>
 
-namespace {
-    constexpr uint8_t MPU_ADDR = 0x68;
+#define MPU_ADDR 0x68
 
-    bool writeRegister(uint8_t reg, uint8_t value) {
-        Wire.beginTransmission(MPU_ADDR);
-        Wire.write(reg);
-        Wire.write(value);
-        return Wire.endTransmission() == 0;
-    }
+bool writeRegister(uint8_t reg, uint8_t value) {
+    Wire.beginTransmission(MPU_ADDR);
+    Wire.write(reg);
+    Wire.write(value);
+    return Wire.endTransmission() == 0;
 }
 
-bool MPU6050::begin(uint8_t sdaPin, uint8_t sclPin) {
+bool beginMPU6050(uint8_t sdaPin, uint8_t sclPin) {
     if (!Wire.begin(sdaPin, sclPin)) {
         return false;
     }
@@ -21,13 +19,11 @@ bool MPU6050::begin(uint8_t sdaPin, uint8_t sclPin) {
     return true;
 }
 
-bool MPU6050::initialize() {
-    return writeRegister(0x6B, 0x00) &&
-           writeRegister(0x1C, 0x00) &&
-           writeRegister(0x1B, 0x00);
+bool initializeMPU6050() {
+    return writeRegister(0x6B, 0x00) && writeRegister(0x1C, 0x00) && writeRegister(0x1B, 0x00);
 }
 
-bool MPU6050::readMotion(MotionData &data) {
+bool readMotion(MotionData &data) {
     Wire.beginTransmission(MPU_ADDR);
     Wire.write(0x3B);
 

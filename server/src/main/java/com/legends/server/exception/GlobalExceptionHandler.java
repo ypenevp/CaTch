@@ -123,6 +123,13 @@ public class GlobalExceptionHandler {
         return buildError(HttpStatus.UNAUTHORIZED,  ex.getMessage(), req.getRequestURI());
     }
 
+    @ExceptionHandler(InvalidDeviceClaimException.class)
+    public ResponseEntity<GeneralErrorResponse> handleInvalidDeviceClaim(
+            InvalidDeviceClaimException ex, HttpServletRequest req) {
+        log.warn("Invalid device claim: {}", ex.getMessage());
+        return buildError(HttpStatus.BAD_REQUEST, ex.getMessage(), req.getRequestURI());
+    }
+
     @ExceptionHandler(EmailDeliveryException.class)
     public ResponseEntity<GeneralErrorResponse> handleEmailDelivery(
             EmailDeliveryException ex, HttpServletRequest req) {

@@ -1,8 +1,9 @@
-package com.legends.server.device.service;
+package com.legends.server.device.service.measurement;
 
-import com.legends.server.device.dto.request.DeviceMeasurementRequest;
 import com.legends.server.device.entity.Device;
 import com.legends.server.device.entity.DeviceMeasurement;
+import com.legends.server.device.entity.DeviceStatus;
+import com.legends.server.device.mqtt.message.DeviceMeasurementMessage;
 import com.legends.server.device.repository.DeviceMeasurementRepository;
 import com.legends.server.device.repository.DeviceRepository;
 import com.legends.server.exception.custom.ResourceNotFoundException;
@@ -10,12 +11,9 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
-import java.util.List;
 
 @Service
 public class DeviceMeasurementService {
-
-    private static final int MAX_MEASUREMENTS_PER_DEVICE = 120;
 
     private final DeviceRepository deviceRepository;
     private final DeviceMeasurementRepository measurementRepository;
@@ -29,33 +27,31 @@ public class DeviceMeasurementService {
     }
 
     @Transactional
-    public void saveMeasurement(String deviceId, DeviceMeasurementRequest request) {
+    public void ingest(String deviceId, DeviceMeasurementMessage message) {
         Device device = deviceRepository.findByDeviceId(deviceId)
                 .orElseThrow(() -> new ResourceNotFoundException("Device not found"));
 
+        if (device.getStatus() != DeviceStatus.ACTIVE) {
+            return;
+        }
+
+        Instant now = Instant.now();
+        Instant measuredAt = message.ts() == null
+                ? now
+                : Instant.ofEpochMilli(message.ts());
+
         DeviceMeasurement measurement = new DeviceMeasurement();
         measurement.setDevice(device);
-        measurement.setAccelX(request.accelX());
-        measurement.setAccelY(request.accelY());
-        measurement.setAccelZ(request.accelZ());
-        measurement.setGyroX(request.gyroX());
-        measurement.setGyroY(request.gyroY());
-        measurement.setGyroZ(request.gyroZ());
-        measurement.setHeartRate(request.heartRate());
-        measurement.setSpo2(request.spo2());
-
+        measurement.setMeasuredAt(measuredAt);
+        measurement.setReceivedAt(now);
+        measurement.setAccelX(message.accelX());
+        measurement.setAccelY(message.accelY());
+        measurement.setAccelZ(message.accelZ());
+        measurement.setGyroX(message.gyroX());
+        measurement.setGyroY(message.gyroY());
+        measurement.setGyroZ(message.gyroZ());
+        measurement.setHeartRate(message.heartRate());
+        measurement.setSpo2(message.spo2());
         measurementRepository.save(measurement);
-        device.setLastSeen(Instant.now());
-        deviceRepository.save(device);
-
-        List<DeviceMeasurement> latestMeasurements =
-                measurementRepository.findTop120ByDeviceOrderByRecordedAtDescIdDesc(device);
-
-        if (latestMeasurements.size() == MAX_MEASUREMENTS_PER_DEVICE) {
-            List<Long> retainedIds = latestMeasurements.stream()
-                    .map(DeviceMeasurement::getId)
-                    .toList();
-            measurementRepository.deleteByDeviceAndIdNotIn(device, retainedIds);
-        }
     }
 }
