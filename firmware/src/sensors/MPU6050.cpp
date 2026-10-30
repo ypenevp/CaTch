@@ -11,10 +11,7 @@ bool writeRegister(uint8_t reg, uint8_t value) {
 }
 
 bool beginMPU6050(uint8_t sdaPin, uint8_t sclPin) {
-    if (!Wire.begin(sdaPin, sclPin)) {
-        return false;
-    }
-
+    Wire.begin(sdaPin, sclPin);
     Wire.setClock(100000);
     return true;
 }
@@ -32,7 +29,8 @@ bool readMotion(MotionData &data) {
     }
 
     if (Wire.requestFrom(
-            MPU_ADDR, static_cast<uint8_t>(14)) != 14) {
+            static_cast<uint8_t>(MPU_ADDR),
+            static_cast<uint8_t>(14)) != 14) {
         return false;
     }
 
