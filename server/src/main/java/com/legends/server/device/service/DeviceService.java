@@ -5,17 +5,20 @@ import com.legends.server.auth.repository.UserRepository;
 import com.legends.server.config.device.DeviceProperties;
 import com.legends.server.device.dto.response.DeviceMeasurementResponse;
 import com.legends.server.device.dto.response.DeviceResponse;
+import com.legends.server.device.dto.response.OwnedDeviceResponse;
 import com.legends.server.device.entity.Device;
 import com.legends.server.device.repository.DeviceMeasurementRepository;
 import com.legends.server.device.repository.DeviceRepository;
 import com.legends.server.exception.custom.ResourceNotFoundException;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
+import java.util.Collection;
 
 @Service
 public class DeviceService {
@@ -76,6 +79,14 @@ public class DeviceService {
         return measurementRepository.findTopByDeviceOrderByMeasuredAtDesc(device)
                 .map(DeviceMeasurementResponse::from)
                 .orElseThrow(() -> new ResourceNotFoundException("Measurement not found"));
+    }
+
+    public Page<OwnedDeviceResponse> getDevicesOfOwners(Collection<Long> ownerIds, Pageable pageable) {
+        if (ownerIds.isEmpty()) {
+            return Page.empty(pageable);
+        }
+        return deviceRepository.findAllByOwnerIdIn(ownerIds, pageable)
+                .map(device -> OwnedDeviceResponse.from(device, toResponse(device)));
     }
 
     private DeviceResponse toResponse(Device device) {
