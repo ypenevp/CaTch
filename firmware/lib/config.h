@@ -27,6 +27,22 @@
 #define ACCEL_CHANGE_THRESHOLD 0.85f
 #define GYRO_CHANGE_THRESHOLD 100.0f
 
+// ==================== NETWORK ====================
+
+#define WIFI_CONNECT_TIMEOUT_MS 20000
+#define HTTP_TIMEOUT_MS 15000
+#define MQTT_PUBLISH_INTERVAL_MS 1000
+#define FACTORY_RESET_HOLD_MS 5000   // hold SELECT while powering on
+
+// ==================== DEVICE ID ====================
+
+// Backend rule (CreateDevicePairingRequest / RegisterFactoryDeviceRequest):
+// ^[A-Za-z0-9_-]{8,64}$
+#define DEVICE_ID_MIN_LENGTH 8
+// BLE limit: the scan response name field holds 29 bytes and the name is
+// "CaTch-" (6) + DEVICE_ID, so the ID can be at most 23 characters.
+#define DEVICE_ID_MAX_LENGTH 23
+
 // ==================== SERIAL ====================
 
 #define SERIAL_BAUD_RATE 115200
@@ -34,6 +50,7 @@
 // ==================== MPU6050 ====================
 
 #define MPU6050_I2C_ADDRESS 0x68
+#define MPU_RETRY_INTERVAL_MS 1000
 
 #define ACCEL_SCALE 16384.0f
 #define GYRO_SCALE 131.0f
@@ -51,5 +68,6 @@ static float prevGz = 0.0f;
 
 static uint32_t lastMotionPrint = 0;
 static uint32_t lastMotionBeep = 0;
+static uint32_t lastMqttPublish = 0;
 
 #endif

@@ -1,11 +1,18 @@
 import { useEffect, useRef, useState } from "react";
 import { ActivityIndicator, ScrollView, Text, TouchableOpacity, View } from "react-native";
-import { Ionicons } from "@expo/vector-icons";
 import { theme } from "@/theme/theme";
 import AuthHeader from "@/components/AuthHeader";
 import PrimaryButton from "@/components/PrimaryButton";
 import ErrorBox from "@/components/ErrorBox";
+import CancelButton from "@/components/CancelButton";
 import { useCancelPairing, usePairing } from "@/hooks/useDevices";
+
+const BRACELET_PHASE_TEXT = {
+  sending: "Sending Wi-Fi details to your bracelet…",
+  wifiConnecting: "Your bracelet is connecting to Wi-Fi…",
+  claiming: "Activating your bracelet…",
+  done: "Activating your bracelet…",
+};
 
 function formatCountdown(totalSeconds) {
   const minutes = Math.floor(totalSeconds / 60);
@@ -29,35 +36,6 @@ function TextLink({ title, onPress }) {
   );
 }
 
-function CancelPairingButton({ onPress, busy }) {
-  return (
-    <TouchableOpacity
-      onPress={onPress}
-      disabled={busy}
-      activeOpacity={0.8}
-      accessibilityRole="button"
-      accessibilityLabel="Cancel pairing"
-      accessibilityState={{ busy, disabled: busy }}
-      style={{
-        height: 52, marginTop: theme.space.xl, borderRadius: theme.radius,
-        borderWidth: 1.5, borderColor: theme.dangerBorder, backgroundColor: theme.dangerSoft,
-        flexDirection: "row", alignItems: "center", justifyContent: "center", gap: theme.space.sm,
-      }}
-    >
-      {busy ? (
-        <ActivityIndicator color={theme.danger} />
-      ) : (
-        <>
-          <Ionicons name="close-circle-outline" size={20} color={theme.danger} />
-          <Text style={{ fontFamily: theme.font.semibold, fontSize: theme.size.md, color: theme.danger }}>
-            Cancel pairing
-          </Text>
-        </>
-      )}
-    </TouchableOpacity>
-  );
-}
-
 function DevTokenBox({ token }) {
   if (!__DEV__ || !token) return null;
 
@@ -76,7 +54,7 @@ function DevTokenBox({ token }) {
   );
 }
 
-export default function PairingStatus({ pairing: created, onDone, onLeave, onRetry }) {
+export default function PairingStatus({ pairing: created, braceletPhase, braceletError, onDone, onLeave, onRetry }) {
   const expiresAtMs = new Date(created.expiresAt).getTime();
   const [now, setNow] = useState(Date.now());
   const secondsLeft = Math.max(0, Math.ceil((expiresAtMs - now) / 1000));
@@ -122,6 +100,21 @@ export default function PairingStatus({ pairing: created, onDone, onLeave, onRet
     );
   }
 
+  if (braceletError) {
+    return (
+      <ScrollView contentContainerStyle={content}>
+        <AuthHeader
+          icon="alert-circle-outline"
+          title="Setup failed"
+          subtitle={braceletError.message}
+          onBack={handleCancel}
+        />
+        <PrimaryButton title="Try again" onPress={onRetry} />
+        <CancelButton onPress={handleCancel} busy={isCancelling} />
+      </ScrollView>
+    );
+  }
+
   if (!isWaiting) {
     const wasCancelled = status === "CANCELLED";
     return (
@@ -143,8 +136,8 @@ export default function PairingStatus({ pairing: created, onDone, onLeave, onRet
     <ScrollView contentContainerStyle={content}>
       <AuthHeader
         icon="bluetooth"
-        title="Waiting for your bracelet"
-        subtitle="Keep the bracelet close and turned on. This usually takes less than a minute."
+        title="Setting up your bracelet"
+        subtitle={BRACELET_PHASE_TEXT[braceletPhase] ?? "Keep the bracelet close and turned on. This usually takes less than a minute."}
         onBack={handleCancel}
       />
 
@@ -160,7 +153,7 @@ export default function PairingStatus({ pairing: created, onDone, onLeave, onRet
         </Text>
       </View>
 
-      <CancelPairingButton onPress={handleCancel} busy={isCancelling} />
+      <CancelButton title="Cancel pairing" onPress={handleCancel} busy={isCancelling} />
 
       <DevTokenBox token={created.pairingToken} />
     </ScrollView>
