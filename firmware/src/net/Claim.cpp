@@ -61,10 +61,17 @@ ClaimResult claimDevice(const String &pairingToken, DeviceConfig &config, String
         return ClaimResult::NetworkError;
     }
 
+    Serial.print("Claim: POST ");
+    Serial.println(url);
+
     http.addHeader("Content-Type", "application/json");
     const int status = http.POST(payload);
     const String response = http.getString();
     http.end();
+
+    // The response holds the MQTT credentials, so only the status is logged
+    Serial.print("Claim: HTTP status ");
+    Serial.println(status);
 
     if (status <= 0) {
         errorMessage = "server unreachable";
@@ -85,6 +92,7 @@ ClaimResult claimDevice(const String &pairingToken, DeviceConfig &config, String
         }
         config.mqttUsername = user;
         config.mqttPassword = pass;
+        Serial.println("Claim: device claimed, MQTT credentials received");
         return ClaimResult::Ok;
     }
 

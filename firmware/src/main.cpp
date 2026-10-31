@@ -72,6 +72,7 @@ static void handleProvisionRequest(const ProvisionRequest &req) {
 
     // Credentials are saved to NVS only after a successful claim
     saveDeviceConfig(config);
+    Serial.println("Provisioning: device config saved");
     bleSetState(ProvState::Done);
     delay(1500);  // BLE turns off within ~2 s after DONE
     bleStop();

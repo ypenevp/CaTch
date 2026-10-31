@@ -74,6 +74,19 @@ static void publishStatus(const char *name, const char *error, const char *messa
     serializeJson(doc, json);
     statusChar->setValue(std::string(json.c_str()));
     statusChar->notify();
+
+    Serial.print("BLE: status -> ");
+    Serial.print(name);
+    if (error) {
+        Serial.print(" (");
+        Serial.print(error);
+        Serial.print(")");
+    }
+    if (message) {
+        Serial.print(": ");
+        Serial.print(message);
+    }
+    Serial.println();
 }
 
 void bleSetState(ProvState s) {
@@ -104,30 +117,54 @@ class ServerCallbacks : public NimBLEServerCallbacks {
         }
         Serial.println("BLE: phone disconnected");
     }
+    void onAuthenticationComplete(ble_gap_conn_desc *desc) override {
+        Serial.println(desc->sec_state.encrypted ? "BLE: link encrypted"
+                                                 : "BLE: link encryption failed");
+    }
 };
 
 class WifiCallbacks : public NimBLECharacteristicCallbacks {
     void onWrite(NimBLECharacteristic *c) override {
-        if (state != ProvState::Confirmed) return;  // silently reject, never log the payload
+        // Never log the payload
+        if (state != ProvState::Confirmed) {
+            Serial.println("BLE: Wi-Fi credentials rejected, not confirmed");
+            return;
+        }
         std::string raw = c->getValue();
         JsonDocument doc;
-        if (deserializeJson(doc, raw) != DeserializationError::Ok) return;
+        if (deserializeJson(doc, raw) != DeserializationError::Ok) {
+            Serial.println("BLE: Wi-Fi credentials rejected, invalid JSON");
+            return;
+        }
         const char *s = doc["ssid"] | "";
         const char *p = doc["password"] | "";
-        if (strlen(s) < 1 || strlen(s) > 32 || strlen(p) > 63) return;
+        if (strlen(s) < 1 || strlen(s) > 32 || strlen(p) > 63) {
+            Serial.println("BLE: Wi-Fi credentials rejected, invalid length");
+            return;
+        }
         SecretsLock lock;
         ssid = s; password = p; hasCreds = true;
+        Serial.println("BLE: Wi-Fi credentials received");
     }
 };
 
 class TokenCallbacks : public NimBLECharacteristicCallbacks {
     void onWrite(NimBLECharacteristic *c) override {
-        if (state != ProvState::Confirmed) return;
+        // Never log the token itself
+        if (state != ProvState::Confirmed) {
+            Serial.println("BLE: pairing token rejected, not confirmed");
+            return;
+        }
         String t = String(c->getValue().c_str());
         t.trim();
-        if (t.length() < 1 || t.length() > 128) return;
+        if (t.length() < 1 || t.length() > 128) {
+            Serial.println("BLE: pairing token rejected, invalid length");
+            return;
+        }
         SecretsLock lock;
         token = t; hasToken = true;
+        Serial.print("BLE: pairing token received, length ");
+        Serial.println(t.length());
     }
 };
 
@@ -137,20 +174,28 @@ class CommandCallbacks : public NimBLECharacteristicCallbacks {
         cmd.trim();
 
         if (cmd == "CANCEL") {
+            Serial.println("BLE: CANCEL received");
             clearSecrets();
             cancelPending = true;
             disconnectRequested = true;  // go back to advertising
         } else if (cmd == "CONNECT") {
-            if (state != ProvState::Confirmed) return;
+            if (state != ProvState::Confirmed) {
+                Serial.println("BLE: CONNECT ignored, not confirmed");
+                return;
+            }
             bool ready;
             {
                 SecretsLock lock;
                 ready = hasToken && hasCreds;
                 if (ready) connectPending = true;
             }
-            if (!ready) {
+            if (ready) {
+                Serial.println("BLE: CONNECT received, starting provisioning");
+            } else {
                 bleReportError("MISSING_INPUT", "Token or Wi-Fi credentials missing");
             }
+        } else {
+            Serial.println("BLE: unknown command ignored");
         }
     }
 };
