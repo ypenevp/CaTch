@@ -34,3 +34,23 @@
 | **Get Device By Id** | `GET` | `/api/v1/devices/{deviceId}` | `Authenticated` | Yes | `200` | **Path param:** `deviceId` |
 | **Get Latest Measurement** | `GET` | `/api/v1/devices/{deviceId}/measurements/latest` | `Authenticated` | Yes | `200` | **Path param:** `deviceId` |
 | **Get Device Measurements** | `GET` | `/api/v1/devices/{deviceId}/measurements` | `Authenticated` | Yes | `200` | **Path param:** `deviceId`, **Query param:** `limit` (default: `120`) |
+
+## Relative Module 
+
+- Base URL: `/api/v1/relatives`
+
+| Description | Method | Full URL | Required Role | Bearer JWT Required? | Expected Status | Parameters |
+| :--- | :--- | :--- | :--- | :--- | :--- | :--- |
+| **Invite Relative** | `POST` | `/api/v1/relatives/invitations` | `USER`, `RELATIVE` | Yes | `201` | **Body:** `username` |
+| **Get My Relatives** | `GET` | `/api/v1/relatives` | `USER`, `RELATIVE` | Yes | `200` | **Query params:** `page`, `size`, `sort` |
+| **Remove Relative / Cancel Invitation** | `DELETE` | `/api/v1/relatives/{relativeId}` | `USER`, `RELATIVE` | Yes | `204` | **Path param:** `relativeId` |
+| **Get My Invitations** | `GET` | `/api/v1/relatives/invitations` | `USER`, `RELATIVE` | Yes | `200` | **Query params:** `page`, `size`, `sort` |
+| **Accept Invitation** (returns new `accessToken` and `refreshToken`) | `POST` | `/api/v1/relatives/invitations/{invitationId}/accept` | `USER`, `RELATIVE` | Yes | `200` | **Path param:** `invitationId` |
+| **Decline Invitation** | `POST` | `/api/v1/relatives/invitations/{invitationId}/decline` | `USER`, `RELATIVE` | Yes | `204` | **Path param:** `invitationId` |
+| **Get Linked Users** | `GET` | `/api/v1/relatives/users` | `RELATIVE` | Yes | `200` | **Query params:** `page`, `size`, `sort` |
+| **Unlink User** | `DELETE` | `/api/v1/relatives/users/{userId}` | `RELATIVE` | Yes | `204` | **Path param:** `userId` |
+| **Get All Linked Users' Devices** | `GET` | `/api/v1/relatives/devices` | `RELATIVE` | Yes | `200` | **Query params:** `page`, `size`, `sort` |
+| **Get Linked User's Devices** | `GET` | `/api/v1/relatives/users/{userId}/devices` | `RELATIVE` | Yes | `200` | **Path param:** `userId`, **Query params:** `page`, `size`, `sort` |
+| **Get Linked User's Device By Id** | `GET` | `/api/v1/relatives/users/{userId}/devices/{deviceId}` | `RELATIVE` | Yes | `200` | **Path params:** `userId`, `deviceId` |
+| **Get Linked User's Latest Measurement** | `GET` | `/api/v1/relatives/users/{userId}/devices/{deviceId}/measurements/latest` | `RELATIVE` | Yes | `200` | **Path params:** `userId`, `deviceId` |
+| **Get Linked User's Device Measurements** | `GET` | `/api/v1/relatives/users/{userId}/devices/{deviceId}/measurements` | `RELATIVE` | Yes | `200` | **Path params:** `userId`, `deviceId`, **Query param:** `limit` (default: `120`) |
