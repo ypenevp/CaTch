@@ -10,6 +10,8 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
+import java.util.List;
+import java.util.Locale;
 
 @Component
 public class MqttBrokerAccessManager {
@@ -84,7 +86,7 @@ public class MqttBrokerAccessManager {
         }
 
         try {
-            Process process = new ProcessBuilder("cmd", "/c", reloadCommand)
+            Process process = new ProcessBuilder(shellCommand(reloadCommand))
                     .redirectErrorStream(true)
                     .start();
             if (process.waitFor() != 0) {
@@ -96,6 +98,11 @@ public class MqttBrokerAccessManager {
             Thread.currentThread().interrupt();
             throw new IllegalStateException("Interrupted while reloading MQTT broker", exception);
         }
+    }
+
+    private List<String> shellCommand(String command) {
+        boolean windows = System.getProperty("os.name").toLowerCase(Locale.ROOT).contains("win");
+        return windows ? List.of("cmd", "/c", command) : List.of("sh", "-c", command);
     }
 
     private void createParentDirectory(Path file) throws IOException {

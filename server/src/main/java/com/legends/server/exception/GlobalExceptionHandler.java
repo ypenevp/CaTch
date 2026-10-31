@@ -8,6 +8,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
@@ -109,6 +110,13 @@ public class GlobalExceptionHandler {
         return buildError(HttpStatus.FORBIDDEN, ex.getMessage(), req.getRequestURI());
     }
 
+    @ExceptionHandler(HttpMessageNotReadableException.class)
+    public ResponseEntity<GeneralErrorResponse> handleUnreadableBody(
+            HttpMessageNotReadableException ex, HttpServletRequest req) {
+        log.warn("Malformed request body: {}", ex.getMessage());
+        return buildError(HttpStatus.BAD_REQUEST, "Malformed JSON request body", req.getRequestURI());
+    }
+
     @ExceptionHandler(InvalidMediaTypeException.class)
     public ResponseEntity<GeneralErrorResponse> handleInvalidMediaType(
             InvalidMediaTypeException ex, HttpServletRequest req) {
@@ -127,6 +135,13 @@ public class GlobalExceptionHandler {
     public ResponseEntity<GeneralErrorResponse> handleInvalidDeviceClaim(
             InvalidDeviceClaimException ex, HttpServletRequest req) {
         log.warn("Invalid device claim: {}", ex.getMessage());
+        return buildError(HttpStatus.BAD_REQUEST, ex.getMessage(), req.getRequestURI());
+    }
+
+    @ExceptionHandler(InvalidRelativeInvitationException.class)
+    public ResponseEntity<GeneralErrorResponse> handleInvalidRelativeInvitation(
+            InvalidRelativeInvitationException ex, HttpServletRequest req) {
+        log.warn("Invalid relative invitation: {}", ex.getMessage());
         return buildError(HttpStatus.BAD_REQUEST, ex.getMessage(), req.getRequestURI());
     }
 
