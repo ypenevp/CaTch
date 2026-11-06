@@ -96,7 +96,7 @@ public class DevicePairingService {
             );
         }
         if (pairing.getStatus() == DevicePairingStatus.PENDING) {
-            pairing.setStatus(DevicePairingStatus.CANCELLED);
+            pairingRepository.delete(pairing);
         }
     }
 
