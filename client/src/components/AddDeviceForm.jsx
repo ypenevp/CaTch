@@ -4,10 +4,11 @@ import { theme } from "@/theme/theme";
 import AuthHeader from "@/components/AuthHeader";
 import AuthInput from "@/components/AuthInput";
 import PrimaryButton from "@/components/PrimaryButton";
+import ErrorBox from "@/components/ErrorBox";
 
 const DEVICE_ID_PATTERN = /^[A-Za-z0-9_-]{8,64}$/;
 
-export default function AddDeviceForm({ initialDeviceId = "", onBack, onSubmit }) {
+export default function AddDeviceForm({ initialDeviceId = "", loading = false, errorMessage, onBack, onSubmit }) {
   const [deviceId, setDeviceId] = useState(initialDeviceId);
   const [fieldErrors, setFieldErrors] = useState({});
 
@@ -35,6 +36,8 @@ export default function AddDeviceForm({ initialDeviceId = "", onBack, onSubmit }
         onBack={onBack}
       />
 
+      <ErrorBox message={errorMessage} />
+
       <AuthInput
         label="Device ID"
         icon="barcode-outline"
@@ -48,7 +51,7 @@ export default function AddDeviceForm({ initialDeviceId = "", onBack, onSubmit }
       />
 
       <View style={{ height: theme.space.sm }} />
-      <PrimaryButton title="Continue" onPress={handleSubmit} />
+      <PrimaryButton title="Continue" onPress={handleSubmit} loading={loading} />
     </ScrollView>
   );
 }
