@@ -8,6 +8,7 @@ class FallDataset(Dataset):
         self,
         X: np.ndarray,
         y: np.ndarray,
+        num_classes: int = 2,
     ) -> None:
         X = np.asarray(X, dtype=np.float32)
         y = np.asarray(y, dtype=np.int64)
@@ -26,8 +27,10 @@ class FallDataset(Dataset):
         if not np.isfinite(X).all():
             raise ValueError("X contains invalid numerical values.")
 
-        if not np.isin(y, [0, 1]).all():
-            raise ValueError("Labels must contain only 0 and 1.")
+        if not np.isin(y, np.arange(num_classes)).all():
+            raise ValueError(
+                f"Labels must be in the range 0..{num_classes - 1}."
+            )
 
         self.X = torch.from_numpy(X)
         self.y = torch.from_numpy(y)

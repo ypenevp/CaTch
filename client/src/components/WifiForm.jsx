@@ -6,18 +6,9 @@ import AuthInput from "@/components/AuthInput";
 import PrimaryButton from "@/components/PrimaryButton";
 import ErrorBox from "@/components/ErrorBox";
 import CancelButton from "@/components/CancelButton";
-import { useCreatePairing } from "@/hooks/useDevices";
 import { utf8ByteLength } from "@/utils/base64Utf8";
 
-function pairingErrorMessage(error) {
-  if (!error) return null;
-  if (error.status === 409) return "This bracelet already has an active pairing. Try again in a few minutes.";
-  if (error.status === 404) return "This bracelet isn't registered or is already linked to an account.";
-  return error.message;
-}
-
-export default function WifiForm({ deviceId, initialSsid = "", initialPassword = "", errorMessage, onSubmit, onCancel }) {
-  const createPairing = useCreatePairing();
+export default function WifiForm({ initialSsid = "", initialPassword = "", loading = false, errorMessage, onSubmit, onCancel }) {
   const [ssid, setSsid] = useState(initialSsid);
   const [password, setPassword] = useState(initialPassword);
   const [fieldErrors, setFieldErrors] = useState({});
@@ -31,10 +22,7 @@ export default function WifiForm({ deviceId, initialSsid = "", initialPassword =
     setFieldErrors(errors);
     if (Object.keys(errors).length) return;
 
-    createPairing.mutate(
-      { deviceId },
-      { onSuccess: (pairing) => onSubmit({ pairing, ssid, password }) }
-    );
+    onSubmit({ ssid, password });
   };
 
   return (
@@ -50,7 +38,7 @@ export default function WifiForm({ deviceId, initialSsid = "", initialPassword =
         onBack={onCancel}
       />
 
-      <ErrorBox message={pairingErrorMessage(createPairing.error) || errorMessage} />
+      <ErrorBox message={errorMessage} />
 
       <AuthInput
         label="Network name"
@@ -75,7 +63,7 @@ export default function WifiForm({ deviceId, initialSsid = "", initialPassword =
       />
 
       <View style={{ height: theme.space.sm }} />
-      <PrimaryButton title="Connect" onPress={handleSubmit} loading={createPairing.isPending} />
+      <PrimaryButton title="Connect" onPress={handleSubmit} loading={loading} />
       <CancelButton onPress={onCancel} />
     </ScrollView>
   );
