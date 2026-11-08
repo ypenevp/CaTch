@@ -23,10 +23,6 @@ static volatile ProvState state = ProvState::Idle;
 static volatile uint16_t connHandle = BLE_HS_CONN_HANDLE_NONE;
 static volatile uint32_t confirmDeadline = 0;
 static volatile bool disconnectRequested = false;
-
-// Secrets live only in RAM and are cleared on done/error/CANCEL/disconnect.
-// They are written by the BLE callbacks (NimBLE host task) and read by loop(),
-// so every access goes through secretsMutex.
 static String token, ssid, password;
 static bool hasToken = false, hasCreds = false;
 static bool connectPending = false;
@@ -96,7 +92,6 @@ void bleSetState(ProvState s) {
 
 void bleReportError(const char *errorCode, const char *message) {
     publishStatus("ERROR", errorCode, message);
-    // Protocol: after ERROR go back to CONFIRMED so the app can retry
     state = ProvState::Confirmed;
 }
 
@@ -118,14 +113,12 @@ class ServerCallbacks : public NimBLEServerCallbacks {
         Serial.println("BLE: phone disconnected");
     }
     void onAuthenticationComplete(ble_gap_conn_desc *desc) override {
-        Serial.println(desc->sec_state.encrypted ? "BLE: link encrypted"
-                                                 : "BLE: link encryption failed");
+        Serial.println(desc->sec_state.encrypted ? "BLE: link encrypted" : "BLE: link encryption failed");
     }
 };
 
 class WifiCallbacks : public NimBLECharacteristicCallbacks {
     void onWrite(NimBLECharacteristic *c) override {
-        // Never log the payload
         if (state != ProvState::Confirmed) {
             Serial.println("BLE: Wi-Fi credentials rejected, not confirmed");
             return;
@@ -298,6 +291,14 @@ void bleConfirmPressed() {
     if (active && state == ProvState::WaitingConfirmation) {
         bleSetState(ProvState::Confirmed);
         Serial.println("BLE: confirmed by SELECT");
+    }
+}
+
+void bleRejectPressed() {
+    if (active && state == ProvState::WaitingConfirmation) {
+        clearSecrets();
+        disconnectRequested = true;
+        Serial.println("BLE: connection rejected by NEXT");
     }
 }
 

@@ -28,6 +28,7 @@ ProvState bleState();
 
 // SELECT was pressed (safe to call even when no phone is connected)
 void bleConfirmPressed();
+void bleRejectPressed();
 
 // Non-blocking; return true once per event.
 bool bleTakeConnectRequest(ProvisionRequest &out);
