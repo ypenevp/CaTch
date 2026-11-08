@@ -1,9 +1,9 @@
-
 from pathlib import Path
 import unittest
 
 import numpy as np
 
+from src.ml.data.labels import FALL_ID, NUM_ACTIVITIES
 from src.ml.data.preprocessing import load_data, clean_data
 from src.ml.data.pipeline import prepare_pipeline
 
@@ -25,8 +25,8 @@ class TestDataPipeline(unittest.TestCase):
         self.assertEqual(X_train.ndim, 3)
         self.assertEqual(X_test.ndim, 3)
 
-        self.assertEqual(X_train.shape[1:], (100, 6))
-        self.assertEqual(X_test.shape[1:], (100, 6))
+        self.assertEqual(X_train.shape[1:], (75, 6))
+        self.assertEqual(X_test.shape[1:], (75, 6))
 
         self.assertEqual(len(X_train), len(y_train))
         self.assertEqual(len(X_test), len(y_test))
@@ -39,6 +39,17 @@ class TestDataPipeline(unittest.TestCase):
 
         self.assertGreater(len(X_train), 0)
         self.assertGreater(len(X_test), 0)
+
+        self.assertTrue(
+            np.array_equal(
+                y_test,
+                (result["y_test_activity"] == FALL_ID).astype(np.int64),
+            )
+        )
+        self.assertEqual(
+            set(np.unique(result["y_train_activity"]).tolist()),
+            set(range(NUM_ACTIVITIES)),
+        )
 
         self.assertFalse(
             set(result["train_subjects"])

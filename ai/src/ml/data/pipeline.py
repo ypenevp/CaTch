@@ -1,17 +1,21 @@
+from collections.abc import Collection
+
 import numpy as np
 import pandas as pd
 from sklearn.model_selection import GroupShuffleSplit
 from sklearn.preprocessing import StandardScaler
 
+from src.ml.data.labels import FALL_ID, activity_id_for_scenario
 from src.ml.data.preprocessing import (
     FEATURE_COLUMNS,
     LABEL_COLUMN,
 )
-from src.ml.data.windowing import create_windows
+from src.ml.data.windowing import create_activity_windows
 
 
-WINDOW_SIZE = 100
-STRIDE = 50
+WINDOW_SIZE = 75
+STRIDE = 38
+FALL_STRIDE = 5
 TEST_SIZE = 0.2
 RANDOM_STATE = 42
 
@@ -19,47 +23,52 @@ RANDOM_STATE = 42
 def create_grouped_windows(
     data: pd.DataFrame,
     scaler: StandardScaler,
-) -> tuple[np.ndarray, np.ndarray]:
+    fall_stride: int | None = None,
+) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
     windows = []
-    labels = []
+    activities = []
 
-    for _, group in data.groupby(
+    for (_, scenario), group in data.groupby(
         ["subject", "scenario"],
         sort=False,
     ):
+        raw = group[FEATURE_COLUMNS].to_numpy(dtype=np.float32)
         X = scaler.transform(group[FEATURE_COLUMNS])
-        y = group[LABEL_COLUMN].to_numpy(dtype=np.int64)
 
-        group_windows, group_labels = create_windows(
+        group_windows, group_activities = create_activity_windows(
             X,
-            y,
+            raw,
+            activity_id_for_scenario(scenario),
             window_size=WINDOW_SIZE,
             stride=STRIDE,
+            fall_stride=fall_stride,
         )
 
         if len(group_windows) > 0:
             windows.append(group_windows)
-            labels.append(group_labels)
+            activities.append(group_activities)
 
     if not windows:
         raise ValueError("No windows were created.")
 
-    return np.concatenate(windows), np.concatenate(labels)
+    X_windows = np.concatenate(windows)
+    y_activity = np.concatenate(activities)
+    y_fall = (y_activity == FALL_ID).astype(np.int64)
+
+    return X_windows, y_fall, y_activity
 
 
-def prepare_pipeline(
+def split_by_subject(
     data: pd.DataFrame,
-) -> dict:
-    if data["subject"].nunique() < 2:
-        raise ValueError("At least two subjects are required.")
-
+    test_size: float,
+) -> tuple[pd.DataFrame, pd.DataFrame]:
     splitter = GroupShuffleSplit(
         n_splits=1,
-        test_size=TEST_SIZE,
+        test_size=test_size,
         random_state=RANDOM_STATE,
     )
 
-    train_indices, test_indices = next(
+    first_indices, second_indices = next(
         splitter.split(
             data,
             data[LABEL_COLUMN],
@@ -67,24 +76,54 @@ def prepare_pipeline(
         )
     )
 
-    train_data = data.iloc[train_indices].copy()
-    test_data = data.iloc[test_indices].copy()
+    return data.iloc[first_indices].copy(), data.iloc[second_indices].copy()
 
-    train_subjects = sorted(train_data["subject"].unique().tolist())
-    test_subjects = sorted(test_data["subject"].unique().tolist())
 
-    if set(train_subjects) & set(test_subjects):
+def sorted_subjects(data: pd.DataFrame) -> list[int]:
+    return sorted(data["subject"].unique().tolist())
+
+
+def prepare_pipeline(
+    data: pd.DataFrame,
+    test_subjects: Collection[int] | None = None,
+    val_size: float = 0.0,
+) -> dict:
+    if data["subject"].nunique() < 2:
+        raise ValueError("At least two subjects are required.")
+
+    if test_subjects is None:
+        train_data, test_data = split_by_subject(data, TEST_SIZE)
+    else:
+        is_test = data["subject"].isin(list(test_subjects))
+        train_data = data[~is_test].copy()
+        test_data = data[is_test].copy()
+
+    val_data = None
+
+    if val_size > 0:
+        train_data, val_data = split_by_subject(train_data, val_size)
+
+    train_subjects = sorted_subjects(train_data)
+    test_subject_list = sorted_subjects(test_data)
+    val_subjects = [] if val_data is None else sorted_subjects(val_data)
+
+    if (
+        set(train_subjects) & set(test_subject_list)
+        or set(train_subjects) & set(val_subjects)
+        or set(val_subjects) & set(test_subject_list)
+    ):
         raise RuntimeError("Subject leakage detected.")
 
     scaler = StandardScaler()
     scaler.fit(train_data[FEATURE_COLUMNS])
 
-    X_train, y_train = create_grouped_windows(
+    X_train, y_train, y_train_activity = create_grouped_windows(
         train_data,
         scaler,
+        fall_stride=FALL_STRIDE,
     )
 
-    X_test, y_test = create_grouped_windows(
+    X_test, y_test, y_test_activity = create_grouped_windows(
         test_data,
         scaler,
     )
@@ -100,13 +139,29 @@ def prepare_pipeline(
     if not np.isfinite(X_test).all():
         raise ValueError("Test windows contain invalid values.")
 
-    return {
+    result = {
         "X_train": X_train,
         "y_train": y_train,
+        "y_train_activity": y_train_activity,
         "X_test": X_test,
         "y_test": y_test,
+        "y_test_activity": y_test_activity,
         "scaler": scaler,
         "feature_columns": FEATURE_COLUMNS.copy(),
         "train_subjects": train_subjects,
-        "test_subjects": test_subjects,
+        "test_subjects": test_subject_list,
+        "val_subjects": val_subjects,
     }
+
+    if val_data is not None:
+        X_val, y_val, y_val_activity = create_grouped_windows(
+            val_data,
+            scaler,
+        )
+        result.update(
+            X_val=X_val,
+            y_val=y_val,
+            y_val_activity=y_val_activity,
+        )
+
+    return result
