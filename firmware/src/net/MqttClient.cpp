@@ -6,13 +6,11 @@
 
 static WiFiClient wifiClient;
 static PubSubClient client(wifiClient);
-static String mqttUser, mqttPass, topic;
+static String topic;
 static uint32_t lastAttempt = 0;
 static bool ntpStarted = false;
 
-void mqttBegin(const String &username, const String &password) {
-    mqttUser = username;
-    mqttPass = password;
+void mqttBegin() {
     topic = String("devices/") + DEVICE_ID + "/measurements";
     client.setServer(MQTT_HOST, MQTT_PORT);
     client.setBufferSize(384);
@@ -36,7 +34,7 @@ void mqttUpdate(uint32_t now) {
     if (lastAttempt != 0 && static_cast<uint32_t>(now - lastAttempt) < 5000) return;
     lastAttempt = now ? now : 1;
 
-    if (client.connect(DEVICE_ID, mqttUser.c_str(), mqttPass.c_str())) {
+    if (client.connect(DEVICE_ID)) {
         Serial.println("MQTT connected");
     } else {
         Serial.print("MQTT connect failed, rc=");
@@ -54,14 +52,14 @@ bool mqttPublishMeasurement(float ax, float ay, float az, float gx, float gy, fl
     int n;
     if (nowSec > 1700000000) {  // clock synced via NTP
         n = snprintf(buf, sizeof(buf),
-                     "{\"ts\":%lld,\"accelX\":%.3f,\"accelY\":%.3f,\"accelZ\":%.3f,"
+                     "{\"ts\":%lld,\"deviceId\":\"%s\",\"accelX\":%.3f,\"accelY\":%.3f,\"accelZ\":%.3f,"
                      "\"gyroX\":%.2f,\"gyroY\":%.2f,\"gyroZ\":%.2f}",
-                     static_cast<long long>(nowSec) * 1000LL, ax, ay, az, gx, gy, gz);
+                     static_cast<long long>(nowSec) * 1000LL, DEVICE_ID, ax, ay, az, gx, gy, gz);
     } else {  // no ts → the server uses the receive time
         n = snprintf(buf, sizeof(buf),
-                     "{\"accelX\":%.3f,\"accelY\":%.3f,\"accelZ\":%.3f,"
+                     "{\"deviceId\":\"%s\",\"accelX\":%.3f,\"accelY\":%.3f,\"accelZ\":%.3f,"
                      "\"gyroX\":%.2f,\"gyroY\":%.2f,\"gyroZ\":%.2f}",
-                     ax, ay, az, gx, gy, gz);
+                     DEVICE_ID, ax, ay, az, gx, gy, gz);
     }
     return n > 0 && client.publish(topic.c_str(), buf);
 }

@@ -9,11 +9,9 @@ bool loadDeviceConfig(DeviceConfig &config) {
 
     config.ssid = prefs.getString("ssid", "");
     config.wifiPassword = prefs.getString("wpass", "");
-    config.mqttUsername = prefs.getString("muser", "");
-    config.mqttPassword = prefs.getString("mpass", "");
     prefs.end();
 
-    return config.ssid.length() > 0 && config.mqttUsername.length() > 0;
+    return config.ssid.length() > 0;
 }
 
 bool saveDeviceConfig(const DeviceConfig &config) {
@@ -22,8 +20,6 @@ bool saveDeviceConfig(const DeviceConfig &config) {
 
     prefs.putString("ssid", config.ssid);
     prefs.putString("wpass", config.wifiPassword);
-    prefs.putString("muser", config.mqttUsername);
-    prefs.putString("mpass", config.mqttPassword);
     prefs.end();
     return true;
 }

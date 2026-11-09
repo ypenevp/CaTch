@@ -69,7 +69,6 @@ ClaimResult claimDevice(const String &pairingToken, DeviceConfig &config, String
     const String response = http.getString();
     http.end();
 
-    // The response holds the MQTT credentials, so only the status is logged
     Serial.print("Claim: HTTP status ");
     Serial.println(status);
 
@@ -84,15 +83,7 @@ ClaimResult claimDevice(const String &pairingToken, DeviceConfig &config, String
     // DeviceClaimController currently answers 200 OK; accept any 2xx so a
     // switch to 201 Created on the backend does not break provisioning.
     if (status >= 200 && status < 300 && parsed) {
-        const char *user = doc["mqttUsername"] | "";
-        const char *pass = doc["mqttPassword"] | "";
-        if (strlen(user) == 0 || strlen(pass) == 0) {
-            errorMessage = "missing mqtt credentials in response";
-            return ClaimResult::NetworkError;
-        }
-        config.mqttUsername = user;
-        config.mqttPassword = pass;
-        Serial.println("Claim: device claimed, MQTT credentials received");
+        Serial.println("Claim: device claimed");
         return ClaimResult::Ok;
     }
 

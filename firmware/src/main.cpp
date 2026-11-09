@@ -38,7 +38,7 @@ static void enterRunningMode(const DeviceConfig &config) {
     WiFi.mode(WIFI_STA);
     WiFi.setAutoReconnect(true);
     WiFi.begin(config.ssid.c_str(), config.wifiPassword.c_str());
-    mqttBegin(config.mqttUsername, config.mqttPassword);
+    mqttBegin();
     mode = Mode::Running;
     Serial.println("Running mode: WiFi + MQTT");
 }

@@ -3,7 +3,7 @@
 
 #include <Arduino.h>
 
-void mqttBegin(const String &username, const String &password);
+void mqttBegin();
 void mqttUpdate(uint32_t now);  // reconnect + keepalive; call on every loop()
 bool mqttIsConnected();
 

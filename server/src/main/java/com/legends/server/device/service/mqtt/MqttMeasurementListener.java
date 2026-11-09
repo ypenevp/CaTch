@@ -16,16 +16,12 @@ import java.util.regex.Pattern;
 public class MqttMeasurementListener {
 
     private static final Logger log = LoggerFactory.getLogger(MqttMeasurementListener.class);
-    private static final Pattern MEASUREMENT_TOPIC =
-            Pattern.compile("^devices/([A-Za-z0-9_-]{8,64})/measurements$");
+    private static final Pattern MEASUREMENT_TOPIC = Pattern.compile("^devices/([A-Za-z0-9_-]{8,64})/measurements$");
 
     private final ObjectMapper objectMapper;
     private final DeviceMeasurementService measurementService;
 
-    public MqttMeasurementListener(
-            ObjectMapper objectMapper,
-            DeviceMeasurementService measurementService
-    ) {
+    public MqttMeasurementListener(ObjectMapper objectMapper, DeviceMeasurementService measurementService) {
         this.objectMapper = objectMapper;
         this.measurementService = measurementService;
     }
@@ -39,10 +35,15 @@ public class MqttMeasurementListener {
         }
 
         try {
-            measurementService.ingest(
-                    matcher.group(1),
-                    objectMapper.readValue(message.getPayload(), DeviceMeasurementMessage.class)
+            DeviceMeasurementMessage measurement = objectMapper.readValue(
+                    message.getPayload(),
+                    DeviceMeasurementMessage.class
             );
+            if (!matcher.group(1).equals(measurement.deviceId())) {
+                log.warn("Ignoring measurement with mismatched device ID");
+                return;
+            }
+            measurementService.ingest(matcher.group(1), measurement);
         } catch (Exception exception) {
             log.error("Failed to process MQTT measurement", exception);
         }
