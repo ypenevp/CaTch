@@ -5,6 +5,7 @@ import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 @JsonIgnoreProperties(ignoreUnknown = true)
 public record DeviceMeasurementMessage(
         Long ts,
+        String deviceId,
         Double accelX,
         Double accelY,
         Double accelZ,

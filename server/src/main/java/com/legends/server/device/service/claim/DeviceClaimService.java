@@ -1,7 +1,5 @@
 package com.legends.server.device.service.claim;
 
-import com.legends.server.device.service.mqtt.MqttCredentialProvisioner;
-
 import com.legends.server.device.dto.request.ClaimDeviceRequest;
 import com.legends.server.device.dto.response.DeviceClaimResponse;
 import com.legends.server.device.entity.Device;
@@ -23,16 +21,13 @@ public class DeviceClaimService {
 
     private final DeviceRepository deviceRepository;
     private final DevicePairingRepository pairingRepository;
-    private final MqttCredentialProvisioner credentialProvisioner;
 
     public DeviceClaimService(
             DeviceRepository deviceRepository,
-            DevicePairingRepository pairingRepository,
-            MqttCredentialProvisioner credentialProvisioner
+            DevicePairingRepository pairingRepository
     ) {
         this.deviceRepository = deviceRepository;
         this.pairingRepository = pairingRepository;
-        this.credentialProvisioner = credentialProvisioner;
     }
 
     @Transactional
@@ -79,13 +74,9 @@ public class DeviceClaimService {
         pairing.setStatus(DevicePairingStatus.PAIRED);
         pairing.setPairedAt(Instant.now());
 
-        MqttCredentialProvisioner.MqttCredentials credentials = credentialProvisioner.provision(device);
-
         return new DeviceClaimResponse(
                 device.getDeviceId(),
-                device.getStatus().name(),
-                credentials.username(),
-                credentials.password()
+                device.getStatus().name()
         );
     }
 }

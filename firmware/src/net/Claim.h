@@ -14,7 +14,7 @@ enum class ClaimResult {
 
 WifiResult connectWifi(const String &ssid, const String &password, uint32_t timeoutMs);
 
-// Sends deviceId + claimSecret + pairingToken. On success fills mqttUsername/mqttPassword.
+// Sends deviceId + claimSecret + pairingToken.
 ClaimResult claimDevice(const String &pairingToken, DeviceConfig &config, String &errorMessage);
 
 #endif

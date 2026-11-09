@@ -7,8 +7,8 @@
 
 // All functions are called only from the network task.
 
-void mqttBegin(const String &username, const String &password);
-void mqttUpdate(uint32_t now);   // reconnect + keepalive
+void mqttBegin();
+void mqttUpdate(uint32_t now);  // reconnect + keepalive; call on every loop()
 bool mqttIsConnected();
 
 // Publishes to devices/<DEVICE_ID>/measurements (JSON, ts in epoch ms)

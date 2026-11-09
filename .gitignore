@@ -44,10 +44,6 @@ yarn-error.*
 *.tsbuildinfo
 
 client/**/example
-
-server/passwordfile
-server/aclfile
-
 client/ios/
 client/android/
 
@@ -59,9 +55,5 @@ claude-code-setup.zip
 CLAUDE.md
 
 .claude/
-
-passwordfile.bak
-
-aclfile.bak
 
 design-proposals

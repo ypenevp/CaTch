@@ -12,8 +12,6 @@
 
 static WiFiClient wifiClient;
 static PubSubClient client(wifiClient);
-static String mqttUser;
-static String mqttPass;
 static String topic;
 static uint32_t lastAttempt = 0;
 static bool ntpStarted = false;
@@ -24,9 +22,7 @@ static void onMessage(char *messageTopic, byte *payload, unsigned int length) {
     logPrintf("MQTT", "Received on %s (%u bytes): %.*s", messageTopic, length, (int)length, (const char *)payload);
 }
 
-void mqttBegin(const String &username, const String &password) {
-    mqttUser = username;
-    mqttPass = password;
+void mqttBegin() {
     topic = String("devices/") + DEVICE_ID + "/measurements";
 
     client.setServer(MQTT_HOST, MQTT_PORT);
@@ -59,20 +55,11 @@ void mqttUpdate(uint32_t now) {
         return;
     }
 
-    if (wasConnected) {
-        logPrintf("MQTT", "Connection lost, state %d", client.state());
-        wasConnected = false;
-    }
+    if (lastAttempt != 0 && static_cast<uint32_t>(now - lastAttempt) < 5000) return;
+    lastAttempt = now ? now : 1;
 
-    if (lastAttempt != 0 && (uint32_t)(now - lastAttempt) < MQTT_RECONNECT_INTERVAL_MS) {
-        return;
-    }
-    lastAttempt = (now == 0) ? 1 : now;
-
-    logPrintf("MQTT", "Connecting to %s:%d as %s", MQTT_HOST, MQTT_PORT, DEVICE_ID);
-    if (client.connect(DEVICE_ID, mqttUser.c_str(), mqttPass.c_str())) {
-        wasConnected = true;
-        logPrintf("MQTT", "Connected");
+    if (client.connect(DEVICE_ID)) {
+        Serial.println("MQTT connected");
     } else {
         logPrintf("MQTT", "Connect failed, state %d, retry in %d ms", client.state(), MQTT_RECONNECT_INTERVAL_MS);
     }
@@ -87,25 +74,19 @@ bool mqttPublishMeasurement(const MotionSample &motion, const VitalsSample &vita
         return false;
     }
 
-    char payload[MQTT_PAYLOAD_SIZE];
-    time_t nowSec = time(NULL);
-    int length;
-    if (nowSec > NTP_SYNCED_AFTER_EPOCH) {
-        length = snprintf(payload, sizeof(payload),
-                          "{\"ts\":%lld,\"accelX\":%.3f,\"accelY\":%.3f,\"accelZ\":%.3f,"
-                          "\"gyroX\":%.2f,\"gyroY\":%.2f,\"gyroZ\":%.2f,"
-                          "\"heartRate\":%d,\"spo2\":%.1f}",
-                          (long long)nowSec * 1000LL,
-                          motion.ax, motion.ay, motion.az, motion.gx, motion.gy, motion.gz,
-                          vitals.heartRate, vitals.spo2);
-    } else {
-        // No NTP time yet: without ts the server uses the receive time
-        length = snprintf(payload, sizeof(payload),
-                          "{\"accelX\":%.3f,\"accelY\":%.3f,\"accelZ\":%.3f,"
-                          "\"gyroX\":%.2f,\"gyroY\":%.2f,\"gyroZ\":%.2f,"
-                          "\"heartRate\":%d,\"spo2\":%.1f}",
-                          motion.ax, motion.ay, motion.az, motion.gx, motion.gy, motion.gz,
-                          vitals.heartRate, vitals.spo2);
+    char buf[256];
+    const time_t nowSec = time(nullptr);
+    int n;
+    if (nowSec > 1700000000) {  // clock synced via NTP
+        n = snprintf(buf, sizeof(buf),
+                     "{\"ts\":%lld,\"deviceId\":\"%s\",\"accelX\":%.3f,\"accelY\":%.3f,\"accelZ\":%.3f,"
+                     "\"gyroX\":%.2f,\"gyroY\":%.2f,\"gyroZ\":%.2f}",
+                     static_cast<long long>(nowSec) * 1000LL, DEVICE_ID, ax, ay, az, gx, gy, gz);
+    } else {  // no ts → the server uses the receive time
+        n = snprintf(buf, sizeof(buf),
+                     "{\"deviceId\":\"%s\",\"accelX\":%.3f,\"accelY\":%.3f,\"accelZ\":%.3f,"
+                     "\"gyroX\":%.2f,\"gyroY\":%.2f,\"gyroZ\":%.2f}",
+                     DEVICE_ID, ax, ay, az, gx, gy, gz);
     }
 
     if (length <= 0 || length >= (int)sizeof(payload)) {
