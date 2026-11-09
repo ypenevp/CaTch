@@ -122,7 +122,7 @@ static void startRunning(const DeviceConfig &config) {
         WiFi.begin(config.ssid.c_str(), config.wifiPassword.c_str());
         lastWifiAttempt = millis();
     }
-    mqttBegin(config.mqttUsername, config.mqttPassword);
+    mqttBegin();
 }
 
 static void updateWifi(uint32_t now) {

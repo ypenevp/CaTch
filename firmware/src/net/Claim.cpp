@@ -86,8 +86,7 @@ ClaimResult claimDevice(const String &pairingToken, DeviceConfig &config, String
     String response = http.getString();
     http.end();
 
-    // The response holds the MQTT credentials, so only the status is logged
-    logPrintf("CLAIM", "HTTP status %d, %d bytes received", status, response.length());
+    logPrintf("CLAIM", "HTTP status %d, response: %s", status, response.c_str());
 
     if (status <= 0) {
         errorMessage = "server unreachable";
@@ -98,18 +97,11 @@ ClaimResult claimDevice(const String &pairingToken, DeviceConfig &config, String
     JsonDocument doc;
     bool parsed = deserializeJson(doc, response) == DeserializationError::Ok;
 
-    // DeviceClaimController answers 200 OK; any 2xx is accepted
-    if (status >= 200 && status < 300 && parsed) {
-        const char *user = doc["mqttUsername"] | "";
-        const char *pass = doc["mqttPassword"] | "";
-        if (strlen(user) == 0 || strlen(pass) == 0) {
-            errorMessage = "missing mqtt credentials in response";
-            logPrintf("CLAIM", "Response has no MQTT credentials");
-            return ClaimResult::NetworkError;
-        }
-        config.mqttUsername = user;
-        config.mqttPassword = pass;
-        logPrintf("CLAIM", "Device claimed, MQTT credentials received");
+    // DeviceClaimController answers 200 OK with { deviceId, status }; any 2xx is accepted.
+    // MQTT needs no credentials any more, so nothing has to be stored from the response.
+    if (status >= 200 && status < 300) {
+        const char *deviceStatus = parsed ? (doc["status"] | "unknown") : "unknown";
+        logPrintf("CLAIM", "Device claimed, status %s", deviceStatus);
         return ClaimResult::Ok;
     }
 

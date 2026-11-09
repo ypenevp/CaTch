@@ -32,7 +32,7 @@ void mqttBegin() {
     client.setCallback(onMessage);
     lastAttempt = 0;
 
-    logPrintf("MQTT", "Broker %s:%d, topic %s", MQTT_HOST, MQTT_PORT, topic.c_str());
+    logPrintf("MQTT", "Broker %s:%d (no username/password), topic %s", MQTT_HOST, MQTT_PORT, topic.c_str());
 }
 
 void mqttUpdate(uint32_t now) {
@@ -55,11 +55,21 @@ void mqttUpdate(uint32_t now) {
         return;
     }
 
-    if (lastAttempt != 0 && static_cast<uint32_t>(now - lastAttempt) < 5000) return;
-    lastAttempt = now ? now : 1;
+    if (wasConnected) {
+        logPrintf("MQTT", "Connection lost, state %d", client.state());
+        wasConnected = false;
+    }
 
+    if (lastAttempt != 0 && (uint32_t)(now - lastAttempt) < MQTT_RECONNECT_INTERVAL_MS) {
+        return;
+    }
+    lastAttempt = (now == 0) ? 1 : now;
+
+    // The broker allows anonymous clients; DEVICE_ID is the MQTT client id
+    logPrintf("MQTT", "Connecting to %s:%d as %s", MQTT_HOST, MQTT_PORT, DEVICE_ID);
     if (client.connect(DEVICE_ID)) {
-        Serial.println("MQTT connected");
+        wasConnected = true;
+        logPrintf("MQTT", "Connected");
     } else {
         logPrintf("MQTT", "Connect failed, state %d, retry in %d ms", client.state(), MQTT_RECONNECT_INTERVAL_MS);
     }
@@ -74,19 +84,29 @@ bool mqttPublishMeasurement(const MotionSample &motion, const VitalsSample &vita
         return false;
     }
 
-    char buf[256];
-    const time_t nowSec = time(nullptr);
-    int n;
-    if (nowSec > 1700000000) {  // clock synced via NTP
-        n = snprintf(buf, sizeof(buf),
-                     "{\"ts\":%lld,\"deviceId\":\"%s\",\"accelX\":%.3f,\"accelY\":%.3f,\"accelZ\":%.3f,"
-                     "\"gyroX\":%.2f,\"gyroY\":%.2f,\"gyroZ\":%.2f}",
-                     static_cast<long long>(nowSec) * 1000LL, DEVICE_ID, ax, ay, az, gx, gy, gz);
-    } else {  // no ts → the server uses the receive time
-        n = snprintf(buf, sizeof(buf),
-                     "{\"deviceId\":\"%s\",\"accelX\":%.3f,\"accelY\":%.3f,\"accelZ\":%.3f,"
-                     "\"gyroX\":%.2f,\"gyroY\":%.2f,\"gyroZ\":%.2f}",
-                     DEVICE_ID, ax, ay, az, gx, gy, gz);
+    // deviceId must match the topic: the backend drops messages where they differ
+    char payload[MQTT_PAYLOAD_SIZE];
+    time_t nowSec = time(NULL);
+    int length;
+    if (nowSec > NTP_SYNCED_AFTER_EPOCH) {
+        length = snprintf(payload, sizeof(payload),
+                          "{\"ts\":%lld,\"deviceId\":\"%s\","
+                          "\"accelX\":%.3f,\"accelY\":%.3f,\"accelZ\":%.3f,"
+                          "\"gyroX\":%.2f,\"gyroY\":%.2f,\"gyroZ\":%.2f,"
+                          "\"heartRate\":%d,\"spo2\":%.1f}",
+                          (long long)nowSec * 1000LL, DEVICE_ID,
+                          motion.ax, motion.ay, motion.az, motion.gx, motion.gy, motion.gz,
+                          vitals.heartRate, vitals.spo2);
+    } else {
+        // No NTP time yet: without ts the server uses the receive time
+        length = snprintf(payload, sizeof(payload),
+                          "{\"deviceId\":\"%s\","
+                          "\"accelX\":%.3f,\"accelY\":%.3f,\"accelZ\":%.3f,"
+                          "\"gyroX\":%.2f,\"gyroY\":%.2f,\"gyroZ\":%.2f,"
+                          "\"heartRate\":%d,\"spo2\":%.1f}",
+                          DEVICE_ID,
+                          motion.ax, motion.ay, motion.az, motion.gx, motion.gy, motion.gz,
+                          vitals.heartRate, vitals.spo2);
     }
 
     if (length <= 0 || length >= (int)sizeof(payload)) {

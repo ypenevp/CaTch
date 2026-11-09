@@ -158,36 +158,61 @@ export default function VitalsTrend({ measurements = [] }) {
       borderWidth: 1, borderColor: theme.border, ...theme.shadow.card,
       paddingHorizontal: theme.space.lg, paddingBottom: theme.space.md,
     }}>
-      <View accessibilityRole="tablist" style={{
-        flexDirection: "row", borderBottomWidth: 1, borderBottomColor: theme.border,
-        marginHorizontal: -theme.space.lg, marginBottom: theme.space.lg,
+      <View style={{
+        flexDirection: "row", alignItems: "center", borderBottomWidth: 1, borderBottomColor: theme.border,
+        marginHorizontal: -theme.space.lg, marginBottom: theme.space.lg, paddingRight: theme.space.sm,
       }}>
-        {Object.entries(METRICS).map(([key, item]) => {
-          const selected = key === metric;
-          return (
-            <TouchableOpacity
-              key={key}
-              onPress={() => setMetric(key)}
-              activeOpacity={0.7}
-              accessibilityRole="tab"
-              accessibilityState={{ selected }}
-              style={{ flex: 1, minHeight: 48, alignItems: "center", justifyContent: "center" }}
-            >
-              <Text style={{
-                fontFamily: selected ? theme.font.semibold : theme.font.medium,
-                fontSize: theme.size.md, color: selected ? theme.text : theme.textMuted,
-              }}>
-                {item.label}
-              </Text>
-              {selected && (
-                <View style={{
-                  position: "absolute", bottom: -1, left: "20%", right: "20%", height: 3,
-                  borderTopLeftRadius: 3, borderTopRightRadius: 3, backgroundColor: theme.primary,
-                }} />
-              )}
-            </TouchableOpacity>
-          );
-        })}
+        <View accessibilityRole="tablist" style={{ flex: 1, flexDirection: "row" }}>
+          {Object.entries(METRICS).map(([key, item]) => {
+            const selected = key === metric;
+            return (
+              <TouchableOpacity
+                key={key}
+                onPress={() => setMetric(key)}
+                activeOpacity={0.7}
+                accessibilityRole="tab"
+                accessibilityState={{ selected }}
+                style={{ flex: 1, minHeight: 48, alignItems: "center", justifyContent: "center" }}
+              >
+                <Text style={{
+                  fontFamily: selected ? theme.font.semibold : theme.font.medium,
+                  fontSize: theme.size.md, color: selected ? theme.text : theme.textMuted,
+                }}>
+                  {item.label}
+                </Text>
+                {selected && (
+                  <View style={{
+                    position: "absolute", bottom: -1, left: "20%", right: "20%", height: 3,
+                    borderTopLeftRadius: 3, borderTopRightRadius: 3, backgroundColor: theme.primary,
+                  }} />
+                )}
+              </TouchableOpacity>
+            );
+          })}
+        </View>
+
+        {enough && (
+          <TouchableOpacity
+            onPress={() => setShowTable((v) => !v)}
+            activeOpacity={0.8}
+            hitSlop={4}
+            accessibilityRole="button"
+            accessibilityLabel={showTable ? "Show as chart" : "Show as table"}
+            accessibilityState={{ selected: showTable }}
+            style={{
+              width: 36, height: 36, borderRadius: 10, marginLeft: theme.space.xs,
+              alignItems: "center", justifyContent: "center", borderWidth: 1,
+              borderColor: showTable ? theme.primaryBorder : theme.border,
+              backgroundColor: showTable ? theme.primarySoft : theme.bg,
+            }}
+          >
+            <MaterialCommunityIcons
+              name={showTable ? "chart-line" : "table"}
+              size={18}
+              color={showTable ? theme.primary : theme.text}
+            />
+          </TouchableOpacity>
+        )}
       </View>
 
       {!enough ? (
@@ -227,22 +252,6 @@ export default function VitalsTrend({ measurements = [] }) {
             <Stat label="Average" value={stats.avg} unit={m.unit} divider />
             <Stat label="Max" value={stats.max} unit={m.unit} divider />
           </View>
-
-          <TouchableOpacity
-            onPress={() => setShowTable((v) => !v)}
-            activeOpacity={0.8}
-            accessibilityRole="button"
-            style={{
-              flexDirection: "row", alignItems: "center", justifyContent: "center", gap: theme.space.sm,
-              minHeight: 44, marginTop: theme.space.lg, borderRadius: theme.radius,
-              borderWidth: 1, borderColor: theme.border, backgroundColor: theme.bg,
-            }}
-          >
-            <MaterialCommunityIcons name={showTable ? "chart-line" : "table"} size={18} color={theme.text} />
-            <Text style={{ fontFamily: theme.font.semibold, fontSize: theme.size.sm, color: theme.text }}>
-              {showTable ? "Show as chart" : "Show as table"}
-            </Text>
-          </TouchableOpacity>
         </>
       )}
     </View>
