@@ -1,31 +1,57 @@
-#include "MqttClient.h"
+#include "net/MqttClient.h"
+
 #include <WiFi.h>
 #include <PubSubClient.h>
 #include <time.h>
-#include <secrets.h>
+#include "secrets.h"
+#include "config.h"
+#include "core/Log.h"
+
+#define MQTT_PAYLOAD_SIZE 320
+#define NTP_SYNCED_AFTER_EPOCH 1700000000
 
 static WiFiClient wifiClient;
 static PubSubClient client(wifiClient);
-static String mqttUser, mqttPass, topic;
+static String mqttUser;
+static String mqttPass;
+static String topic;
 static uint32_t lastAttempt = 0;
 static bool ntpStarted = false;
+static bool wasConnected = false;
+static uint32_t publishedCount = 0;
+
+static void onMessage(char *messageTopic, byte *payload, unsigned int length) {
+    logPrintf("MQTT", "Received on %s (%u bytes): %.*s", messageTopic, length, (int)length, (const char *)payload);
+}
 
 void mqttBegin(const String &username, const String &password) {
     mqttUser = username;
     mqttPass = password;
     topic = String("devices/") + DEVICE_ID + "/measurements";
+
     client.setServer(MQTT_HOST, MQTT_PORT);
-    client.setBufferSize(384);
-    client.setKeepAlive(15);
+    client.setBufferSize(MQTT_BUFFER_SIZE);
+    client.setKeepAlive(MQTT_KEEPALIVE_S);
+    client.setSocketTimeout(MQTT_SOCKET_TIMEOUT_S);
+    client.setCallback(onMessage);
     lastAttempt = 0;
+
+    logPrintf("MQTT", "Broker %s:%d, topic %s", MQTT_HOST, MQTT_PORT, topic.c_str());
 }
 
 void mqttUpdate(uint32_t now) {
-    if (WiFi.status() != WL_CONNECTED) return;
+    if (WiFi.status() != WL_CONNECTED) {
+        if (wasConnected) {
+            logPrintf("MQTT", "Disconnected (Wi-Fi lost)");
+            wasConnected = false;
+        }
+        return;
+    }
 
     if (!ntpStarted) {
         configTime(0, 0, "pool.ntp.org", "time.google.com");
         ntpStarted = true;
+        logPrintf("MQTT", "NTP time sync started");
     }
 
     if (client.connected()) {
@@ -33,35 +59,66 @@ void mqttUpdate(uint32_t now) {
         return;
     }
 
-    if (lastAttempt != 0 && static_cast<uint32_t>(now - lastAttempt) < 5000) return;
-    lastAttempt = now ? now : 1;
+    if (wasConnected) {
+        logPrintf("MQTT", "Connection lost, state %d", client.state());
+        wasConnected = false;
+    }
 
+    if (lastAttempt != 0 && (uint32_t)(now - lastAttempt) < MQTT_RECONNECT_INTERVAL_MS) {
+        return;
+    }
+    lastAttempt = (now == 0) ? 1 : now;
+
+    logPrintf("MQTT", "Connecting to %s:%d as %s", MQTT_HOST, MQTT_PORT, DEVICE_ID);
     if (client.connect(DEVICE_ID, mqttUser.c_str(), mqttPass.c_str())) {
-        Serial.println("MQTT connected");
+        wasConnected = true;
+        logPrintf("MQTT", "Connected");
     } else {
-        Serial.print("MQTT connect failed, rc=");
-        Serial.println(client.state());
+        logPrintf("MQTT", "Connect failed, state %d, retry in %d ms", client.state(), MQTT_RECONNECT_INTERVAL_MS);
     }
 }
 
-bool mqttIsConnected() { return client.connected(); }
+bool mqttIsConnected() {
+    return client.connected();
+}
 
-bool mqttPublishMeasurement(float ax, float ay, float az, float gx, float gy, float gz) {
-    if (!client.connected()) return false;
-
-    char buf[256];
-    const time_t nowSec = time(nullptr);
-    int n;
-    if (nowSec > 1700000000) {  // clock synced via NTP
-        n = snprintf(buf, sizeof(buf),
-                     "{\"ts\":%lld,\"accelX\":%.3f,\"accelY\":%.3f,\"accelZ\":%.3f,"
-                     "\"gyroX\":%.2f,\"gyroY\":%.2f,\"gyroZ\":%.2f}",
-                     static_cast<long long>(nowSec) * 1000LL, ax, ay, az, gx, gy, gz);
-    } else {  // no ts → the server uses the receive time
-        n = snprintf(buf, sizeof(buf),
-                     "{\"accelX\":%.3f,\"accelY\":%.3f,\"accelZ\":%.3f,"
-                     "\"gyroX\":%.2f,\"gyroY\":%.2f,\"gyroZ\":%.2f}",
-                     ax, ay, az, gx, gy, gz);
+bool mqttPublishMeasurement(const MotionSample &motion, const VitalsSample &vitals) {
+    if (!client.connected()) {
+        return false;
     }
-    return n > 0 && client.publish(topic.c_str(), buf);
+
+    char payload[MQTT_PAYLOAD_SIZE];
+    time_t nowSec = time(NULL);
+    int length;
+    if (nowSec > NTP_SYNCED_AFTER_EPOCH) {
+        length = snprintf(payload, sizeof(payload),
+                          "{\"ts\":%lld,\"accelX\":%.3f,\"accelY\":%.3f,\"accelZ\":%.3f,"
+                          "\"gyroX\":%.2f,\"gyroY\":%.2f,\"gyroZ\":%.2f,"
+                          "\"heartRate\":%d,\"spo2\":%.1f}",
+                          (long long)nowSec * 1000LL,
+                          motion.ax, motion.ay, motion.az, motion.gx, motion.gy, motion.gz,
+                          vitals.heartRate, vitals.spo2);
+    } else {
+        // No NTP time yet: without ts the server uses the receive time
+        length = snprintf(payload, sizeof(payload),
+                          "{\"accelX\":%.3f,\"accelY\":%.3f,\"accelZ\":%.3f,"
+                          "\"gyroX\":%.2f,\"gyroY\":%.2f,\"gyroZ\":%.2f,"
+                          "\"heartRate\":%d,\"spo2\":%.1f}",
+                          motion.ax, motion.ay, motion.az, motion.gx, motion.gy, motion.gz,
+                          vitals.heartRate, vitals.spo2);
+    }
+
+    if (length <= 0 || length >= (int)sizeof(payload)) {
+        logPrintf("MQTT", "Payload does not fit in %d bytes", MQTT_PAYLOAD_SIZE);
+        return false;
+    }
+
+    bool sent = client.publish(topic.c_str(), payload);
+    if (sent) {
+        publishedCount++;
+        logPrintf("MQTT", "Sent #%lu to %s: %s", (unsigned long)publishedCount, topic.c_str(), payload);
+    } else {
+        logPrintf("MQTT", "Publish failed, state %d", client.state());
+    }
+    return sent;
 }

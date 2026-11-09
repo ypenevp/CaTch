@@ -1,299 +1,280 @@
-
 #include <Arduino.h>
-#include <secrets.h>
-#include <math.h>
-#include <config.h>
+#include <Wire.h>
 
-#include <MPU6050.h>
-#include <Buttons.h>
-#include <Buzzer.h>
-
-#include <WiFi.h>
-#include "net/DeviceStorage.h"
+#include "config.h"
+#include "secrets.h"
+#include "core/Log.h"
 #include "net/BleProvisioning.h"
-#include "net/Claim.h"
-#include "net/MqttClient.h"
+#include "net/DeviceStorage.h"
+#include "net/NetworkTask.h"
+#include "sensors/Motion.h"
+#include "sensors/Vitals.h"
+#include "ui/Buttons.h"
+#include "ui/Buzzer.h"
+#include "ui/Display.h"
 
-constexpr bool isValidDeviceIdChar(char c) {
-    return (c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z') ||
-           (c >= '0' && c <= '9') || c == '_' || c == '-';
-}
-
-constexpr bool isValidDeviceId(const char *id) {
-    return *id == '\0' || (isValidDeviceIdChar(*id) && isValidDeviceId(id + 1));
-}
-
-static_assert(sizeof(DEVICE_ID) - 1 >= DEVICE_ID_MIN_LENGTH,
-              "DEVICE_ID must be at least 8 characters (backend validation)");
-static_assert(sizeof(DEVICE_ID) - 1 <= DEVICE_ID_MAX_LENGTH,
-              "DEVICE_ID must be at most 23 characters to fit in the BLE name");
-static_assert(isValidDeviceId(DEVICE_ID),
-              "DEVICE_ID may contain only letters, digits, '_' and '-' (backend validation)");
+static_assert(sizeof(DEVICE_ID) - 1 >= DEVICE_ID_MIN_LENGTH, "DEVICE_ID must be at least 8 characters (backend rule)");
+static_assert(sizeof(DEVICE_ID) - 1 <= DEVICE_ID_MAX_LENGTH, "DEVICE_ID must be at most 23 characters (BLE name limit)");
 
 enum class Mode { Provisioning, Running };
+
 static Mode mode = Mode::Provisioning;
 
-// Applies the stored configuration and switches to running mode (Wi-Fi + MQTT).
-static void enterRunningMode(const DeviceConfig &config) {
-    WiFi.mode(WIFI_STA);
-    WiFi.setAutoReconnect(true);
-    WiFi.begin(config.ssid.c_str(), config.wifiPassword.c_str());
-    mqttBegin(config.mqttUsername, config.mqttPassword);
-    mode = Mode::Running;
-    Serial.println("Running mode: WiFi + MQTT");
-}
+// Provisioning (pairing) state, used only by loop()
+static ProvState lastBleState = ProvState::Idle;
+static ProvisionStage lastProvisionStage = ProvisionStage::Idle;
+static uint32_t lastPairingPrompt = 0;
+static bool finishingProvisioning = false;
+static uint32_t provisioningDoneAt = 0;
+static DeviceConfig provisionedConfig;
 
-// Handles CONNECT: Wi-Fi -> claim against the backend -> save to NVS.
-static void handleProvisionRequest(const ProvisionRequest &req) {
-    bleSetState(ProvState::WifiConnecting);
+// Running state
+static bool announcedConnected = false;
+static bool lastWifiConnected = false;
+static bool lastMqttConnected = false;
 
-    const WifiResult wifi = connectWifi(req.ssid, req.password, WIFI_CONNECT_TIMEOUT_MS);
-    if (wifi != WifiResult::Ok) {
-        const char *code = wifi == WifiResult::NotFound   ? "WIFI_NOT_FOUND"
-                         : wifi == WifiResult::AuthFailed ? "WIFI_AUTH_FAILED"
-                                                          : "WIFI_TIMEOUT";
-        bleReportError(code);
-        return;  // back in CONFIRMED, the app can retry
-    }
+// ---------- helpers ----------
 
-    bleSetState(ProvState::Claiming);
-    DeviceConfig config;
-    config.ssid = req.ssid;
-    config.wifiPassword = req.password;
-
-    String error;
-    const ClaimResult result = claimDevice(req.pairingToken, config, error);
-    if (result != ClaimResult::Ok) {
-        WiFi.disconnect(true);
-        bleReportError(result == ClaimResult::Rejected ? "CLAIM_REJECTED" : "CLAIM_NETWORK",
-                       error.c_str());
-        return;
-    }
-
-    // Credentials are saved to NVS only after a successful claim
-    saveDeviceConfig(config);
-    Serial.println("Provisioning: device config saved");
-    bleSetState(ProvState::Done);
-    delay(1500);  // BLE turns off within ~2 s after DONE
-    bleStop();
-
-    enterRunningMode(config);
-    beep(2800, 120);
-}
-
-void onNext(bool pressed) {
-    Serial.print("Next ");
-    Serial.println(pressed ? "pressed" : "released");
-
-    if (pressed) {
-        beep(2000, 60);
-    }
-}
-
-void onSelect(bool pressed) {
-    Serial.print("Select ");
-    Serial.println(pressed ? "pressed" : "released");
-
-    if (pressed) {
-        beep(2800, 120);
-        bleConfirmPressed();  // confirms the BLE pairing if it is waiting
-    }
-}
-
-void setup() {
-    Serial.begin(SERIAL_BAUD_RATE);
-    delay(1000);
-
-    beginButtons(NEXT_PIN, SELECT_PIN);
-    beginBuzzer(BUZZER_PIN);
-    beginMPU6050(SDA_PIN, SCL_PIN);
-
-    Serial.println("MPU6050, buttons and buzzer starting...");
-
-    // Factory reset: hold SELECT while powering on
-    if (digitalRead(SELECT_PIN) == LOW) {
-        const uint32_t start = millis();
-        while (digitalRead(SELECT_PIN) == LOW) {
-            if (millis() - start >= FACTORY_RESET_HOLD_MS) {
-                clearDeviceConfig();
-                beep(1000, 400);
-                Serial.println("Factory reset: stored config cleared");
-                break;
-            }
-            delay(10);
+static bool deviceIdIsValid(const char *id) {
+    for (size_t i = 0; id[i] != '\0'; i++) {
+        char c = id[i];
+        bool valid = (c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z') || (c >= '0' && c <= '9') || c == '_' || c == '-';
+        if (!valid) {
+            return false;
         }
     }
+    return true;
+}
+
+static const char *stageName(ProvisionStage stage) {
+    switch (stage) {
+        case ProvisionStage::Idle:           return "IDLE";
+        case ProvisionStage::WifiConnecting: return "WIFI_CONNECTING";
+        case ProvisionStage::Claiming:       return "CLAIMING";
+        case ProvisionStage::Success:        return "SUCCESS";
+        case ProvisionStage::Failed:         return "FAILED";
+    }
+    return "IDLE";
+}
+
+static bool waitingForConfirmation() {
+    return mode == Mode::Provisioning && bleState() == ProvState::WaitingConfirmation;
+}
+
+// ---------- modes ----------
+
+static void startProvisioningMode() {
+    mode = Mode::Provisioning;
+    logPrintf("MODE", "Provisioning: waiting for the CaTch app over BLE");
+    bleStart(DEVICE_ID);
+}
+
+static void startRunningMode(const DeviceConfig &config) {
+    mode = Mode::Running;
+    logPrintf("MODE", "Running: Wi-Fi \"%s\" + MQTT", config.ssid.c_str());
+    networkStartRunning(config);
+}
+
+static void checkFactoryReset() {
+    if (digitalRead(SELECT_PIN) != LOW) {
+        return;
+    }
+    logPrintf("BOOT", "SELECT held at power-on, keep holding %d s for factory reset", FACTORY_RESET_HOLD_MS / 1000);
+
+    uint32_t start = millis();
+    while (digitalRead(SELECT_PIN) == LOW) {
+        if ((uint32_t)(millis() - start) >= FACTORY_RESET_HOLD_MS) {
+            clearDeviceConfig();
+            buzzerPlay(Sound::FactoryReset);
+            logPrintf("BOOT", "Factory reset done");
+            return;
+        }
+        delay(10);
+    }
+    logPrintf("BOOT", "SELECT released early, no factory reset");
+}
+
+// ---------- buttons ----------
+
+static void handleDisplayAction(DisplayAction action) {
+    if (action == DisplayAction::ToggleSound) {
+        buzzerSetEnabled(!buzzerIsEnabled());
+    }
+}
+
+static void onNextButton(bool pressed) {
+    logPrintf("BUTTON", "NEXT %s", pressed ? "pressed" : "released");
+    if (!pressed) {
+        return;
+    }
+    if (waitingForConfirmation()) {
+        bleRejectPressed();
+        buzzerPlay(Sound::Rejected);
+        return;
+    }
+    handleDisplayAction(displayNext());
+}
+
+static void onSelectButton(bool pressed) {
+    logPrintf("BUTTON", "SELECT %s", pressed ? "pressed" : "released");
+    if (!pressed) {
+        return;
+    }
+    if (waitingForConfirmation()) {
+        bleConfirmPressed();
+        buzzerPlay(Sound::Confirmed);
+        return;
+    }
+    handleDisplayAction(displaySelect());
+}
+
+// ---------- per-mode updates ----------
+
+static void updateProvisioning(uint32_t now) {
+    bleUpdate(now);
+
+    ProvState ble = bleState();
+    if (ble != lastBleState) {
+        logPrintf("BLE", "State %s -> %s", bleStateName(lastBleState), bleStateName(ble));
+        if (ble == ProvState::WaitingConfirmation) {
+            buzzerPlay(Sound::PairingRequest);
+            lastPairingPrompt = now;
+        }
+        lastBleState = ble;
+    }
+    if (ble == ProvState::WaitingConfirmation && (uint32_t)(now - lastPairingPrompt) >= PAIRING_PROMPT_INTERVAL_MS) {
+        buzzerPlay(Sound::PairingRequest);
+        lastPairingPrompt = now;
+    }
+
+    if (bleTakeCancel()) {
+        logPrintf("BLE", "App cancelled the pairing");
+        networkCancelProvisioning();
+    }
+
+    ProvisionRequest request;
+    if (bleTakeConnectRequest(request)) {
+        logPrintf("BLE", "CONNECT received, handing over to the network task");
+        networkStartProvisioning(request);
+    }
+
+    // Mirror the network task's progress to the app over BLE
+    ProvisionStage stage = networkGetProvisionStage();
+    if (stage != lastProvisionStage) {
+        logPrintf("NET", "Provisioning stage %s -> %s", stageName(lastProvisionStage), stageName(stage));
+        if (stage == ProvisionStage::WifiConnecting) {
+            bleSetState(ProvState::WifiConnecting);
+        } else if (stage == ProvisionStage::Claiming) {
+            bleSetState(ProvState::Claiming);
+        }
+        lastProvisionStage = stage;
+    }
+
+    ProvisionResult result;
+    if (networkTakeProvisionResult(result)) {
+        lastProvisionStage = ProvisionStage::Idle;
+        if (result.stage == ProvisionStage::Success) {
+            saveDeviceConfig(result.config);
+            bleSetState(ProvState::Done);
+            buzzerPlay(Sound::PairingSuccess);
+            provisionedConfig = result.config;
+            finishingProvisioning = true;
+            provisioningDoneAt = now;
+        } else {
+            logPrintf("NET", "Provisioning failed: %s %s", result.errorCode.c_str(), result.errorMessage.c_str());
+            bleReportError(result.errorCode.c_str(), result.errorMessage.c_str());
+            buzzerPlay(Sound::Error);
+        }
+    }
+
+    // Keep BLE on for a moment so the app reads DONE, then switch modes
+    if (finishingProvisioning && (uint32_t)(now - provisioningDoneAt) >= PROVISION_DONE_DELAY_MS) {
+        finishingProvisioning = false;
+        bleStop();
+        startRunningMode(provisionedConfig);
+    }
+}
+
+static void updateRunning(bool newMotionSample) {
+    if (newMotionSample) {
+        Measurement measurement;
+        motionGetLatest(measurement.motion);
+        vitalsRead(measurement.vitals);
+        networkSubmitMeasurement(measurement);
+    }
+
+    bool wifi = networkIsWifiConnected();
+    bool mqtt = networkIsMqttConnected();
+    if (wifi != lastWifiConnected || mqtt != lastMqttConnected) {
+        logPrintf("STATUS", "Wi-Fi %s, MQTT %s", wifi ? "connected" : "offline", mqtt ? "connected" : "offline");
+        lastWifiConnected = wifi;
+        lastMqttConnected = mqtt;
+    }
+    if (mqtt && !announcedConnected) {
+        buzzerPlay(Sound::Connected);
+        announcedConnected = true;
+    }
+}
+
+static void updateScreen(uint32_t now) {
+    DisplayData data;
+    data.running = mode == Mode::Running;
+    data.bleState = bleState();
+    data.provisionStage = networkGetProvisionStage();
+    data.wifiConnected = networkIsWifiConnected();
+    data.mqttConnected = networkIsMqttConnected();
+    data.motionReady = motionIsReady();
+    data.hasMotion = motionGetLatest(data.motion);
+    vitalsRead(data.vitals);
+    data.soundEnabled = buzzerIsEnabled();
+    displayUpdate(now, data);
+}
+
+// ---------- Arduino entry points ----------
+
+void setup() {
+    logBegin(SERIAL_BAUD_RATE);
+    delay(500);
+    logPrintf("BOOT", "CaTch firmware %s, device %s", FW_VERSION, DEVICE_ID);
+
+    if (!deviceIdIsValid(DEVICE_ID)) {
+        logPrintf("BOOT", "ERROR: DEVICE_ID may contain only letters, digits, '_' and '-'");
+    }
+
+    buttonsBegin(NEXT_PIN, SELECT_PIN);
+    buzzerBegin(BUZZER_PIN);
+
+    // One I2C bus for the MPU6050 and the OLED; both are used only from loop()
+    Wire.begin(SDA_PIN, SCL_PIN);
+    Wire.setClock(I2C_CLOCK_HZ);
+    logPrintf("BOOT", "I2C on SDA %d / SCL %d at %d Hz", SDA_PIN, SCL_PIN, I2C_CLOCK_HZ);
+    displayBegin();
+
+    checkFactoryReset();
+    networkBegin();
 
     DeviceConfig config;
     if (loadDeviceConfig(config)) {
-        enterRunningMode(config);
+        startRunningMode(config);
     } else {
-        mode = Mode::Provisioning;
-        bleStart(DEVICE_ID);
+        startProvisioningMode();
     }
+    logPrintf("BOOT", "Setup done, loop() runs on core %d", xPortGetCoreID());
 }
 
 void loop() {
-    const uint32_t now = millis();
+    uint32_t now = millis();
 
-    updateButtons(now, onNext, onSelect);
-    updateBuzzer(now);
+    buttonsUpdate(now, onNextButton, onSelectButton);
+    buzzerUpdate(now);
+    bool newMotionSample = motionUpdate(now);
 
     if (mode == Mode::Provisioning) {
-        bleUpdate(now);
-
-        // No display: beep while waiting for SELECT
-        static uint32_t lastPrompt = 0;
-        if (bleState() == ProvState::WaitingConfirmation &&
-            static_cast<uint32_t>(now - lastPrompt) >= 3000) {
-            beep(2400, 150);
-            lastPrompt = now;
-        }
-
-        if (bleTakeCancel()) {
-            WiFi.disconnect(true);
-        }
-
-        ProvisionRequest request;
-        if (bleTakeConnectRequest(request)) {
-            handleProvisionRequest(request);
-        }
+        updateProvisioning(now);
     } else {
-        mqttUpdate(now);
+        updateRunning(newMotionSample);
     }
 
-    // MPU6050 initialization. Retried without delay() so buttons and BLE keep
-    // running even when the sensor is missing.
-    if (!mpuInitialized) {
-        static uint32_t lastMpuInitAttempt = 0;
-        static bool mpuInitAttempted = false;
-
-        if (mpuInitAttempted &&
-            static_cast<uint32_t>(now - lastMpuInitAttempt) < MPU_RETRY_INTERVAL_MS) {
-            return;
-        }
-
-        mpuInitAttempted = true;
-        lastMpuInitAttempt = now;
-        mpuInitialized = initializeMPU6050();
-
-        if (!mpuInitialized) {
-            Serial.println("MPU6050 init/I2C error; retrying");
-            return;
-        }
-
-        Serial.println("MPU6050 ready (I2C 0x68)");
-    }
-
-    // Interval between measurements
-    if (static_cast<uint32_t>(
-            now - lastMotionPrint
-        ) < MOTION_INTERVAL_MS) {
-        return;
-    }
-
-    lastMotionPrint = now;
-
-    MotionData motion{};
-
-    // Read the sensor data
-    if (!readMotion(motion)) {
-        Serial.println("MPU6050 read error; reinitializing");
-
-        mpuInitialized = false;
-        havePrevious = false;
-
-        return;
-    }
-
-    // Convert to physical units
-    const float ax = motion.ax / ACCEL_SCALE;
-    const float ay = motion.ay / ACCEL_SCALE;
-    const float az = motion.az / ACCEL_SCALE;
-
-    const float gx = motion.gx / GYRO_SCALE;
-    const float gy = motion.gy / GYRO_SCALE;
-    const float gz = motion.gz / GYRO_SCALE;
-
-    if (havePrevious) {
-        // Change of the acceleration vector (g)
-        const float dax = ax - prevAx;
-        const float day = ay - prevAy;
-        const float daz = az - prevAz;
-
-        const float accelChange = sqrtf(
-            dax * dax + day * day + daz * daz
-        );
-
-        // Change of the angular velocity vector (deg/s)
-        const float dgx = gx - prevGx;
-        const float dgy = gy - prevGy;
-        const float dgz = gz - prevGz;
-
-        const float gyroChange = sqrtf(
-            dgx * dgx + dgy * dgy + dgz * dgz
-        );
-
-        const bool suddenAcceleration =
-            accelChange >= ACCEL_CHANGE_THRESHOLD;
-
-        const bool suddenRotation =
-            gyroChange >= GYRO_CHANGE_THRESHOLD;
-
-        const bool cooldownPassed =
-            static_cast<uint32_t>(
-                now - lastMotionBeep
-            ) >= BUZZER_COOLDOWN_MS;
-
-        if ((suddenAcceleration || suddenRotation)
-            && cooldownPassed) {
-
-            beep(
-                MOTION_BEEP_FREQ,
-                MOTION_BEEP_DURATION_MS
-            );
-
-            lastMotionBeep = now;
-
-            Serial.print("SUDDEN MOTION! Accel change: ");
-            Serial.print(accelChange, 3);
-            Serial.print(" g | Gyro change: ");
-            Serial.print(gyroChange, 2);
-            Serial.println(" deg/s");
-        }
-    }
-
-    // Store the current values
-    prevAx = ax;
-    prevAy = ay;
-    prevAz = az;
-
-    prevGx = gx;
-    prevGy = gy;
-    prevGz = gz;
-
-    havePrevious = true;
-
-    // Publish over MQTT (running mode only)
-    if (mode == Mode::Running &&
-        static_cast<uint32_t>(now - lastMqttPublish) >= MQTT_PUBLISH_INTERVAL_MS) {
-        if (mqttPublishMeasurement(ax, ay, az, gx, gy, gz)) {
-            lastMqttPublish = now;
-        }
-    }
-
-    // Print the measurements
-    Serial.print("Accel [g]: ");
-    Serial.print(ax, 3);
-    Serial.print(", ");
-    Serial.print(ay, 3);
-    Serial.print(", ");
-    Serial.print(az, 3);
-
-    Serial.print(" | Gyro [deg/s]: ");
-    Serial.print(gx, 2);
-    Serial.print(", ");
-    Serial.print(gy, 2);
-    Serial.print(", ");
-    Serial.println(gz, 2);
+    updateScreen(now);
+    delay(1);
 }

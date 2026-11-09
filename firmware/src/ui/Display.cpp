@@ -1,221 +1,291 @@
-#include "Display.h"
+#include "ui/Display.h"
+
 #include <Wire.h>
 #include <Adafruit_GFX.h>
 #include <Adafruit_SSD1306.h>
-#include <WiFi.h>
-#include <math.h>
+#include "config.h"
+#include "core/Log.h"
 
-namespace {
-constexpr int16_t SCREEN_WIDTH = 128;
-constexpr int16_t SCREEN_HEIGHT = 64;
-constexpr uint8_t OLED_RESET = -1;
-constexpr uint32_t REFRESH_MS = 180;
+#define OLED_RESET_PIN -1
+#define CHAR_WIDTH 6          // text size 1
+#define HEADER_LINE_Y 11
+#define FOOTER_LINE_Y 54
+#define FOOTER_TEXT_Y 56
+#define MENU_FIRST_Y 14
+#define MENU_ROW_HEIGHT 8
 
-Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, OLED_RESET);
-bool available = false;
-uint8_t oledAddress = 0;
-constexpr uint8_t SCREEN_COUNT = 4;
-uint8_t selectedScreen = 0;
-bool menuOpen = true;
-bool soundEnabled = true;
-uint32_t lastRefresh = 0;
+#define SCREEN_HOME 0
+#define SCREEN_VITALS 1
+#define SCREEN_SENSOR 2
+#define SCREEN_CONNECTIONS 3
+#define SCREEN_SETTINGS 4
+#define SCREEN_COUNT 5
 
-const char *shortBleState(ProvState state) {
+static const char *SCREEN_NAMES[SCREEN_COUNT] = {"HOME", "VITALS", "SENSOR", "CONNECTIONS", "SETTINGS"};
+
+static Adafruit_SSD1306 oled(OLED_WIDTH, OLED_HEIGHT, &Wire, OLED_RESET_PIN);
+static bool available = false;
+static uint8_t selectedScreen = SCREEN_HOME;
+static bool menuOpen = false;
+static bool redrawNow = true;
+static uint32_t lastRefresh = 0;
+
+// ---------- drawing helpers ----------
+
+static void drawRightAligned(const char *text, int16_t y) {
+    int16_t x = OLED_WIDTH - (int16_t)strlen(text) * CHAR_WIDTH;
+    oled.setCursor(x < 0 ? 0 : x, y);
+    oled.print(text);
+}
+
+static void drawCentered(const char *text, uint8_t size, int16_t y) {
+    oled.setTextSize(size);
+    int16_t x = (OLED_WIDTH - (int16_t)strlen(text) * CHAR_WIDTH * size) / 2;
+    oled.setCursor(x < 0 ? 0 : x, y);
+    oled.print(text);
+    oled.setTextSize(1);
+}
+
+static void drawHeader(const char *right) {
+    oled.setTextSize(1);
+    oled.setTextColor(SSD1306_WHITE);
+    oled.setCursor(0, 0);
+    oled.print("CaTch");
+    drawRightAligned(right, 0);
+    oled.drawLine(0, HEADER_LINE_Y, OLED_WIDTH - 1, HEADER_LINE_Y, SSD1306_WHITE);
+}
+
+static void drawFooter(const char *hint) {
+    oled.drawLine(0, FOOTER_LINE_Y, OLED_WIDTH - 1, FOOTER_LINE_Y, SSD1306_WHITE);
+    oled.setCursor(0, FOOTER_TEXT_Y);
+    oled.print(hint);
+}
+
+static void drawRow(int16_t y, const char *label, const char *value) {
+    oled.setCursor(0, y);
+    oled.print(label);
+    drawRightAligned(value, y);
+}
+
+// ---------- screens ----------
+
+static void drawPairingRequest() {
+    oled.drawRect(0, 0, OLED_WIDTH, OLED_HEIGHT, SSD1306_WHITE);
+    drawCentered("PAIRING REQUEST", 1, 6);
+    oled.drawLine(0, 17, OLED_WIDTH - 1, 17, SSD1306_WHITE);
+    drawCentered("A phone wants to", 1, 23);
+    drawCentered("connect. Allow it?", 1, 33);
+    drawCentered("SEL:allow NEXT:deny", 1, 50);
+}
+
+static void drawPairingProgress(const DisplayData &data) {
+    drawHeader("PAIRING");
+    if (data.bleState == ProvState::Done) {
+        drawCentered("PAIRED", 2, 20);
+        drawCentered("Starting...", 1, 42);
+        return;
+    }
+    const char *step = data.provisionStage == ProvisionStage::Claiming ? "Registering" : "Wi-Fi";
+    drawCentered("Connecting", 1, 20);
+    drawCentered(step, 2, 32);
+}
+
+static void drawMenu() {
+    drawHeader("MENU");
+    for (uint8_t i = 0; i < SCREEN_COUNT; i++) {
+        int16_t y = MENU_FIRST_Y + i * MENU_ROW_HEIGHT;
+        if (i == selectedScreen) {
+            oled.fillRect(0, y - 1, OLED_WIDTH, MENU_ROW_HEIGHT, SSD1306_WHITE);
+            oled.setTextColor(SSD1306_BLACK);
+        } else {
+            oled.setTextColor(SSD1306_WHITE);
+        }
+        oled.setCursor(4, y);
+        oled.print(SCREEN_NAMES[i]);
+    }
+    oled.setTextColor(SSD1306_WHITE);
+    drawFooter("NEXT:move SEL:open");
+}
+
+static void drawHome(const DisplayData &data) {
+    if (!data.running) {
+        drawHeader("SETUP");
+        drawCentered("NOT PAIRED", 1, 16);
+        drawCentered("Open the CaTch app", 1, 28);
+        drawCentered("to add this device", 1, 38);
+    } else {
+        drawHeader(data.mqttConnected ? "ONLINE" : "OFFLINE");
+        drawRow(16, "Wi-Fi", data.wifiConnected ? "CONNECTED" : "WAITING");
+        drawRow(28, "Server", data.mqttConnected ? "CONNECTED" : "WAITING");
+        drawRow(40, "Sensor", data.motionReady ? "READY" : "SEARCHING");
+    }
+    drawFooter("SEL/NEXT: menu");
+}
+
+static void drawVitals(const DisplayData &data) {
+    drawHeader("VITALS");
+    char value[12];
+
+    oled.setCursor(0, 20);
+    oled.print("Pulse");
+    snprintf(value, sizeof(value), "%d", data.vitals.heartRate);
+    oled.setTextSize(2);
+    oled.setCursor(48, 15);
+    oled.print(value);
+    oled.setTextSize(1);
+    oled.setCursor(98, 20);
+    oled.print("bpm");
+
+    oled.setCursor(0, 40);
+    oled.print("SpO2");
+    snprintf(value, sizeof(value), "%.0f", data.vitals.spo2);
+    oled.setTextSize(2);
+    oled.setCursor(48, 35);
+    oled.print(value);
+    oled.setTextSize(1);
+    oled.setCursor(98, 40);
+    oled.print("%");
+
+    drawFooter(data.vitals.simulated ? "DEMO DATA  SEL: menu" : "SEL/NEXT: menu");
+}
+
+static void drawSensor(const DisplayData &data) {
+    drawHeader("SENSOR");
+    if (!data.motionReady || !data.hasMotion) {
+        drawCentered("SENSOR OFFLINE", 1, 22);
+        drawCentered("Check I2C wiring", 1, 36);
+    } else {
+        char line[24];
+        snprintf(line, sizeof(line), "AX %+.2f AY %+.2f", data.motion.ax, data.motion.ay);
+        oled.setCursor(0, 16);
+        oled.print(line);
+        snprintf(line, sizeof(line), "AZ %+.2f GX %+4.0f", data.motion.az, data.motion.gx);
+        oled.setCursor(0, 28);
+        oled.print(line);
+        snprintf(line, sizeof(line), "GY %+4.0f GZ %+4.0f", data.motion.gy, data.motion.gz);
+        oled.setCursor(0, 40);
+        oled.print(line);
+    }
+    drawFooter("SEL/NEXT: menu");
+}
+
+static const char *shortBleState(ProvState state) {
     switch (state) {
         case ProvState::WaitingConfirmation: return "REQUEST";
-        case ProvState::Confirmed: return "CONFIRMED";
-        case ProvState::WifiConnecting: return "WIFI SETUP";
-        case ProvState::Claiming: return "REGISTERING";
-        case ProvState::Done: return "COMPLETE";
-        default: return "ADVERTISING";
+        case ProvState::Confirmed:           return "CONFIRMED";
+        case ProvState::WifiConnecting:      return "WI-FI";
+        case ProvState::Claiming:            return "REGISTER";
+        case ProvState::Done:                return "DONE";
+        case ProvState::Idle:                return "WAITING";
     }
+    return "WAITING";
 }
 
-void header(const char *right) {
-    display.setTextSize(1);
-    display.setTextColor(SSD1306_WHITE);
-    display.setCursor(0, 0);
-    display.print(F("CaTch"));
-    display.setCursor(77, 0);
-    display.print(right);
-    display.drawLine(0, 11, 127, 11, SSD1306_WHITE);
+static void drawConnections(const DisplayData &data) {
+    drawHeader("LINKS");
+    drawRow(16, "BLE", data.running ? "OFF" : shortBleState(data.bleState));
+    drawRow(28, "Wi-Fi", data.wifiConnected ? "CONNECTED" : "--");
+    drawRow(40, "MQTT", data.mqttConnected ? "CONNECTED" : "--");
+    drawFooter("SEL/NEXT: menu");
 }
 
-void footer(const char *hint) {
-    display.drawLine(0, 54, 127, 54, SSD1306_WHITE);
-    display.setCursor(0, 57);
-    display.print(hint);
+static void drawSettings(const DisplayData &data) {
+    drawHeader("SETTINGS");
+    drawRow(22, "Sound", data.soundEnabled ? "ON" : "OFF");
+    drawFooter("NEXT:back SEL:toggle");
 }
 
-void centered(const char *text, uint8_t size, int16_t y) {
-    display.setTextSize(size);
-    int16_t x1, y1;
-    uint16_t w, h;
-    display.getTextBounds(text, 0, y, &x1, &y1, &w, &h);
-    display.setCursor((SCREEN_WIDTH - w) / 2, y);
-    display.print(text);
-}
+// ---------- public API ----------
 
-void drawHome(bool running, bool wifi, bool mqtt, bool mpu) {
-    header(running ? (wifi ? "ONLINE" : "OFFLINE") : "SETUP");
-    if (!running) {
-        centered("READY", 2, 19);
-        centered("Waiting for BLE", 1, 40);
-        footer("NEXT: MENU  SEL: MENU");
-    } else {
-        display.setCursor(0, 17); display.print(F("WiFi"));
-        display.setCursor(76, 17); display.print(wifi ? F("CONNECTED") : F("WAITING"));
-        display.setCursor(0, 29); display.print(F("MQTT"));
-        display.setCursor(76, 29); display.print(mqtt ? F("CONNECTED") : F("OFFLINE"));
-        display.setCursor(0, 41); display.print(F("MPU6050"));
-        display.setCursor(76, 41); display.print(mpu ? F("READY") : F("SEARCHING"));
-        footer("NEXT: MENU  SEL: MENU");
-    }
-}
-
-void drawSensor(const MotionData *motion, bool mpuReady) {
-    header("SENSOR");
-    if (!mpuReady || motion == nullptr) {
-        centered("SENSOR OFFLINE", 1, 27);
-        centered("Check I2C wiring", 1, 40);
-    } else {
-        const float ax = motion->ax / 16384.0f;
-        const float ay = motion->ay / 16384.0f;
-        const float az = motion->az / 16384.0f;
-        const float gx = motion->gx / 131.0f;
-        const float gy = motion->gy / 131.0f;
-        const float gz = motion->gz / 131.0f;
-        char line[24];
-        snprintf(line, sizeof(line), "AX %+.2f AY %+.2f", ax, ay);
-        display.setCursor(0, 15); display.print(line);
-        snprintf(line, sizeof(line), "AZ %+.2f GX %+.0f", az, gx);
-        display.setCursor(0, 28); display.print(line);
-        snprintf(line, sizeof(line), "GY %+.0f GZ %+.0f", gy, gz);
-        display.setCursor(0, 41); display.print(line);
-    }
-    footer("NEXT: MENU  SEL: MENU");
-}
-
-void drawConnections(bool running, ProvState ble, bool wifi, bool mqtt) {
-    header("LINKS");
-    display.setCursor(0, 16); display.print(F("BLE  "));
-    if (running) display.print(F("OFF"));
-    else display.print(shortBleState(ble));
-    display.setCursor(0, 29); display.print(F("WiFi "));
-    display.print(running ? (wifi ? F("CONNECTED") : F("CONNECTING")) : F("--"));
-    display.setCursor(0, 42); display.print(F("MQTT "));
-    display.print(running ? (mqtt ? F("CONNECTED") : F("OFFLINE")) : F("--"));
-    footer("NEXT: MENU  SEL: MENU");
-}
-
-void drawSettings() {
-    header("SETTINGS");
-    display.setCursor(0, 22);
-    display.print(F("Sound: "));
-    display.print(soundEnabled ? F("ON") : F("OFF"));
-    display.setCursor(0, 38);
-    display.print(F("SELECT toggles sound"));
-    footer("NEXT: MENU  SEL: TOGGLE");
-}
-
-void drawMenu() {
-    header("MENU");
-    const char *items[] = {"HOME", "SENSOR", "CONNECTIONS", "SETTINGS"};
-    for (uint8_t i = 0; i < SCREEN_COUNT; ++i) {
-        const int16_t y = 15 + i * 10;
-        if (i == selectedScreen) {
-            display.fillRect(0, y - 1, SCREEN_WIDTH, 9, SSD1306_WHITE);
-            display.setTextColor(SSD1306_BLACK);
-        } else {
-            display.setTextColor(SSD1306_WHITE);
+bool displayBegin() {
+    uint8_t addresses[2] = {OLED_ADDRESS_PRIMARY, OLED_ADDRESS_SECONDARY};
+    for (uint8_t i = 0; i < 2; i++) {
+        Wire.beginTransmission(addresses[i]);
+        if (Wire.endTransmission() != 0) {
+            continue;
         }
-        display.setCursor(4, y);
-        display.print(items[i]);
-    }
-    display.setTextColor(SSD1306_WHITE);
-    footer("NEXT: MOVE  SEL: OPEN");
-}
-
-void drawBleAlert() {
-    display.drawRect(0, 0, 128, 64, SSD1306_WHITE);
-    centered("BLE REQUEST", 1, 9);
-    display.drawLine(0, 21, 127, 21, SSD1306_WHITE);
-    centered("DEVICE CONNECTED", 1, 27);
-    centered("Confirm connection?", 1, 39);
-    centered("SEL: ACCEPT  NEXT: DENY", 1, 53);
-}
-}
-
-void beginDisplay(uint8_t sdaPin, uint8_t sclPin) {
-    // Wire is already initialized by beginMPU6050(); pins are kept in the
-    // signature to document that OLED and MPU6050 share the same I2C bus.
-    (void)sdaPin;
-    (void)sclPin;
-
-    const uint8_t candidates[] = {0x3C, 0x3D};
-    for (uint8_t address : candidates) {
-        Wire.beginTransmission(address);
-        if (Wire.endTransmission() == 0) {
-            if (display.begin(SSD1306_SWITCHCAPVCC, address)) {
-                oledAddress = address;
-                available = true;
-                display.clearDisplay();
-                display.setTextColor(SSD1306_WHITE);
-                display.setTextSize(1);
-                display.setCursor(0, 0);
-                display.println(F("CaTch"));
-                display.println(F("OLED initialized"));
-                display.display();
-                Serial.printf("OLED SSD1306 detected at I2C 0x%02X\n", address);
-                return;
-            }
+        if (oled.begin(SSD1306_SWITCHCAPVCC, addresses[i])) {
+            available = true;
+            oled.clearDisplay();
+            oled.setTextColor(SSD1306_WHITE);
+            drawCentered("CaTch", 2, 18);
+            drawCentered("starting...", 1, 40);
+            oled.display();
+            logPrintf("DISPLAY", "SSD1306 found at I2C 0x%02X", addresses[i]);
+            return true;
         }
     }
-    Serial.println(F("OLED not found at I2C 0x3C or 0x3D"));
+    logPrintf("DISPLAY", "SSD1306 not found at 0x%02X or 0x%02X", OLED_ADDRESS_PRIMARY, OLED_ADDRESS_SECONDARY);
+    return false;
 }
 
-bool displayAvailable() { return available; }
-bool displaySoundEnabled() { return soundEnabled; }
-uint8_t displayAddress() { return oledAddress; }
+bool displayAvailable() {
+    return available;
+}
 
-void displayNext() {
+DisplayAction displayNext() {
     if (menuOpen) {
         selectedScreen = (selectedScreen + 1) % SCREEN_COUNT;
+        logPrintf("DISPLAY", "Menu: %s selected", SCREEN_NAMES[selectedScreen]);
     } else {
         menuOpen = true;
+        logPrintf("DISPLAY", "Menu opened");
     }
+    redrawNow = true;
+    return DisplayAction::None;
 }
 
-void displaySelect() {
+DisplayAction displaySelect() {
+    redrawNow = true;
     if (menuOpen) {
         menuOpen = false;
-    } else if (selectedScreen == 3) {
-        soundEnabled = !soundEnabled;
-    } else {
-        menuOpen = true;
+        logPrintf("DISPLAY", "Screen opened: %s", SCREEN_NAMES[selectedScreen]);
+        return DisplayAction::None;
     }
+    if (selectedScreen == SCREEN_SETTINGS) {
+        return DisplayAction::ToggleSound;
+    }
+    menuOpen = true;
+    logPrintf("DISPLAY", "Menu opened");
+    return DisplayAction::None;
 }
 
-void updateDisplay(uint32_t now, bool running, ProvState ble,
-                   bool wifiConnected, bool mqttConnected,
-                   bool mpuReady, const MotionData *motion) {
-    if (!available || static_cast<uint32_t>(now - lastRefresh) < REFRESH_MS) return;
-    lastRefresh = now;
-    display.clearDisplay();
-
-    if (!running && ble == ProvState::WaitingConfirmation) {
-        drawBleAlert();
-    } else {
-        if (menuOpen) {
-            drawMenu();
-        } else {
-            switch (selectedScreen) {
-                case 0: drawHome(running, wifiConnected, mqttConnected, mpuReady); break;
-                case 1: drawSensor(motion, mpuReady); break;
-                case 2: drawConnections(running, ble, wifiConnected, mqttConnected); break;
-                default: drawSettings(); break;
-            }
-        }
+void displayUpdate(uint32_t now, const DisplayData &data) {
+    if (!available) {
+        return;
     }
-    display.display();
+    if (!redrawNow && (uint32_t)(now - lastRefresh) < DISPLAY_REFRESH_MS) {
+        return;
+    }
+    redrawNow = false;
+    lastRefresh = now;
+
+    oled.clearDisplay();
+    oled.setTextSize(1);
+    oled.setTextColor(SSD1306_WHITE);
+
+    bool pairing = !data.running;
+    bool pairingBusy = data.provisionStage == ProvisionStage::WifiConnecting ||
+                       data.provisionStage == ProvisionStage::Claiming ||
+                       data.bleState == ProvState::Done;
+
+    if (pairing && data.bleState == ProvState::WaitingConfirmation) {
+        drawPairingRequest();
+    } else if (pairing && pairingBusy) {
+        drawPairingProgress(data);
+    } else if (menuOpen) {
+        drawMenu();
+    } else if (selectedScreen == SCREEN_HOME) {
+        drawHome(data);
+    } else if (selectedScreen == SCREEN_VITALS) {
+        drawVitals(data);
+    } else if (selectedScreen == SCREEN_SENSOR) {
+        drawSensor(data);
+    } else if (selectedScreen == SCREEN_CONNECTIONS) {
+        drawConnections(data);
+    } else {
+        drawSettings(data);
+    }
+
+    oled.display();
 }

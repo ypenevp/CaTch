@@ -3,10 +3,23 @@
 
 #include <Arduino.h>
 
-void beginBuzzer(uint8_t pin);
-void buzzerOn(uint16_t frequency);
-void buzzerOff();
-void beep(uint16_t frequency, uint32_t durationMs);
-void updateBuzzer(uint32_t now);
+// The buzzer only plays these notifications, never on its own.
+enum class Sound {
+    PairingRequest,   // a phone wants to pair (repeats while waiting for SELECT)
+    Confirmed,        // SELECT accepted the pairing
+    Rejected,         // NEXT rejected the pairing
+    PairingSuccess,   // claimed by the backend, settings saved
+    Connected,        // first MQTT connection after boot
+    Error,            // Wi-Fi or claim failed
+    FactoryReset      // stored settings cleared
+};
+
+void buzzerBegin(uint8_t pin);
+void buzzerUpdate(uint32_t now);   // call on every loop()
+void buzzerPlay(Sound sound);
+void buzzerStop();
+
+void buzzerSetEnabled(bool enabled);
+bool buzzerIsEnabled();
 
 #endif

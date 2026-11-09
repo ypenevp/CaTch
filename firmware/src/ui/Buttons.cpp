@@ -1,6 +1,6 @@
-#include "Buttons.h"
+#include "ui/Buttons.h"
 
-#define DEBOUNCE_MS 35
+#include "config.h"
 
 struct DebouncedButton {
     uint8_t pin;
@@ -9,47 +9,43 @@ struct DebouncedButton {
     uint32_t candidateSince;
 };
 
-DebouncedButton nextButton{};
-DebouncedButton selectButton{};
+static DebouncedButton nextButton;
+static DebouncedButton selectButton;
 
-void initializeButton(DebouncedButton &button, uint8_t pin) {
+static void initializeButton(DebouncedButton &button, uint8_t pin) {
     button.pin = pin;
-    pinMode(pin, INPUT_PULLUP);
+    pinMode(pin, INPUT_PULLUP);   // pressed = LOW
 
-    const bool pressed = digitalRead(pin) == LOW;
-
+    bool pressed = digitalRead(pin) == LOW;
     button.stablePressed = pressed;
     button.candidatePressed = pressed;
     button.candidateSince = millis();
 }
 
-void updateButton(DebouncedButton &button, Callback onChange, uint32_t now) {
-    const bool rawPressed = digitalRead(button.pin) == LOW;
+static void updateButton(DebouncedButton &button, ButtonCallback onChange, uint32_t now) {
+    bool rawPressed = digitalRead(button.pin) == LOW;
 
     if (rawPressed != button.candidatePressed) {
         button.candidatePressed = rawPressed;
         button.candidateSince = now;
     }
 
-    if (button.candidatePressed != button.stablePressed &&
-        static_cast<uint32_t>(
-            now - button.candidateSince
-        ) >= DEBOUNCE_MS) {
-
+    bool changed = button.candidatePressed != button.stablePressed;
+    bool stableLongEnough = (uint32_t)(now - button.candidateSince) >= BUTTON_DEBOUNCE_MS;
+    if (changed && stableLongEnough) {
         button.stablePressed = button.candidatePressed;
-
-        if (onChange != nullptr) {
+        if (onChange != NULL) {
             onChange(button.stablePressed);
         }
     }
 }
 
-void beginButtons(uint8_t nextPin, uint8_t selectPin) {
+void buttonsBegin(uint8_t nextPin, uint8_t selectPin) {
     initializeButton(nextButton, nextPin);
     initializeButton(selectButton, selectPin);
 }
 
-void updateButtons(uint32_t now, Callback onNext, Callback onSelect) {
+void buttonsUpdate(uint32_t now, ButtonCallback onNext, ButtonCallback onSelect) {
     updateButton(nextButton, onNext, now);
     updateButton(selectButton, onSelect, now);
 }

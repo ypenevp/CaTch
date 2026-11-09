@@ -28,14 +28,33 @@ export const theme = {
   dangerBorder: '#FECACA',
 
   metric: {
-    heart: { color: '#E11D48', bg: '#FFF1F2' },
-    oxygen: { color: '#0369A1', bg: '#F0F9FF' },
+    heart: { color: '#E11D48', bg: '#FFF1F2', light: '#FDA4AF' },
+    oxygen: { color: '#0369A1', bg: '#F0F9FF', light: '#7DD3FC' },
     fall: { color: '#0F766E', bg: '#F0FDFA' },
+  },
+
+  figure: {
+    back: '#93C5FD',
+    dangerBack: '#FCA5A5',
+    mutedBack: '#CBD5E1',
+    prop: '#CBD5E1',
+    propSoft: '#E2E8F0',
+  },
+
+  chart: {
+    grid: '#EEF2F7',
+    segmentBg: '#EEF2F7',
+  },
+
+  ring: {
+    track: '#EEF2F7',
+    off: '#CBD5E1',
   },
 
   radius: 14,
 
   size: {
+    xxs: 10,
     xs: 12,
     sm: 14,
     md: 16,

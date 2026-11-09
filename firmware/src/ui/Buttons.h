@@ -3,10 +3,10 @@
 
 #include <Arduino.h>
 
-using Callback = void (*)(bool pressed);
+// Called once per debounced change: pressed = true on press, false on release
+typedef void (*ButtonCallback)(bool pressed);
 
-void beginButtons(uint8_t nextPin, uint8_t selectPin);
-
-void updateButtons(uint32_t now, Callback onNext, Callback onSelect);
+void buttonsBegin(uint8_t nextPin, uint8_t selectPin);
+void buttonsUpdate(uint32_t now, ButtonCallback onNext, ButtonCallback onSelect);
 
 #endif

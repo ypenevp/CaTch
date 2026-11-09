@@ -3,7 +3,7 @@
 
 #include <Arduino.h>
 
-// Implements the "BLE Provisioning Protocol" v1 (docs/ble-provisioning.md).
+// Implements the "BLE Provisioning Protocol" v1 used by the CaTch app.
 
 enum class ProvState {
     Idle,                 // advertising, no phone connected
@@ -25,17 +25,18 @@ void bleStop();
 bool bleIsActive();
 void bleUpdate(uint32_t now);   // confirmation timeout; call on every loop()
 ProvState bleState();
+const char *bleStateName(ProvState state);
 
-// SELECT was pressed (safe to call even when no phone is connected)
+// SELECT accepts / NEXT rejects a phone that waits for confirmation
 void bleConfirmPressed();
 void bleRejectPressed();
 
-// Non-blocking; return true once per event.
+// Non-blocking; each returns true once per event
 bool bleTakeConnectRequest(ProvisionRequest &out);
 bool bleTakeCancel();
 
-// Notify STATUS. Reporting an error automatically returns to Confirmed.
+// Notify STATUS. Reporting an error returns to Confirmed so the app can retry.
 void bleSetState(ProvState state);
-void bleReportError(const char *errorCode, const char *message = nullptr);
+void bleReportError(const char *errorCode, const char *message);
 
 #endif

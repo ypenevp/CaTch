@@ -1,57 +1,52 @@
-#include "MPU6050.h"
+#include "sensors/MPU6050.h"
+
 #include <Wire.h>
+#include "config.h"
 
-#define MPU_ADDR 0x68
+#define MPU_REG_PWR_MGMT_1 0x6B
+#define MPU_REG_ACCEL_CONFIG 0x1C
+#define MPU_REG_GYRO_CONFIG 0x1B
+#define MPU_REG_ACCEL_XOUT_H 0x3B
+#define MPU_DATA_LENGTH 14
 
-bool writeRegister(uint8_t reg, uint8_t value) {
-    Wire.beginTransmission(MPU_ADDR);
+static bool writeRegister(uint8_t reg, uint8_t value) {
+    Wire.beginTransmission(MPU6050_I2C_ADDRESS);
     Wire.write(reg);
     Wire.write(value);
     return Wire.endTransmission() == 0;
 }
 
-bool beginMPU6050(uint8_t sdaPin, uint8_t sclPin) {
-    Wire.begin(sdaPin, sclPin);
-    Wire.setClock(100000);
-    return true;
+bool mpuInitialize() {
+    // Wake up, +-2 g, +-250 deg/s
+    return writeRegister(MPU_REG_PWR_MGMT_1, 0x00) &&
+           writeRegister(MPU_REG_ACCEL_CONFIG, 0x00) &&
+           writeRegister(MPU_REG_GYRO_CONFIG, 0x00);
 }
 
-bool initializeMPU6050() {
-    return writeRegister(0x6B, 0x00) && writeRegister(0x1C, 0x00) && writeRegister(0x1B, 0x00);
-}
-
-bool readMotion(MotionData &data) {
-    Wire.beginTransmission(MPU_ADDR);
-    Wire.write(0x3B);
-
+bool mpuRead(MotionRaw &raw) {
+    Wire.beginTransmission(MPU6050_I2C_ADDRESS);
+    Wire.write(MPU_REG_ACCEL_XOUT_H);
     if (Wire.endTransmission(false) != 0) {
         return false;
     }
 
-    if (Wire.requestFrom(
-            static_cast<uint8_t>(MPU_ADDR),
-            static_cast<uint8_t>(14)) != 14) {
+    if (Wire.requestFrom((uint8_t)MPU6050_I2C_ADDRESS, (uint8_t)MPU_DATA_LENGTH) != MPU_DATA_LENGTH) {
         return false;
     }
 
     int16_t values[7];
-
-    for (int i = 0; i < 7; ++i) {
-        uint8_t hi = Wire.read();
-        uint8_t lo = Wire.read();
-
-        values[i] = static_cast<int16_t>(
-            (static_cast<uint16_t>(hi) << 8) | lo
-        );
+    for (int i = 0; i < 7; i++) {
+        uint8_t high = Wire.read();
+        uint8_t low = Wire.read();
+        values[i] = (int16_t)((high << 8) | low);
     }
 
-    data.ax = values[0];
-    data.ay = values[1];
-    data.az = values[2];
-
-    data.gx = values[4];
-    data.gy = values[5];
-    data.gz = values[6];
-
+    // values[3] is the temperature, not used
+    raw.ax = values[0];
+    raw.ay = values[1];
+    raw.az = values[2];
+    raw.gx = values[4];
+    raw.gy = values[5];
+    raw.gz = values[6];
     return true;
 }
