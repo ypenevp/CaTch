@@ -10,6 +10,10 @@ public record DeviceProperties(
         @Positive int pairingExpirationMinutes,
         @Positive int measurementsRetentionCount,
         @Positive int maxClockDriftSeconds,
-        @Positive int onlineThresholdSeconds
+        @Positive int onlineThresholdSeconds,
+        @Positive int statisticsBucketSeconds,
+        @Positive int statisticsRetentionMinutes,
+        @Positive int statisticsDefaultWindowMinutes,
+        @Positive int statisticsMaxWindowMinutes
 ) {
 }

@@ -9,6 +9,7 @@ import com.legends.server.device.mqtt.message.DeviceMeasurementMessage;
 import com.legends.server.device.repository.DeviceMeasurementRepository;
 import com.legends.server.device.repository.DeviceRepository;
 import com.legends.server.exception.custom.ResourceNotFoundException;
+import com.legends.server.device.service.statistics.DeviceStatisticsService;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -21,15 +22,18 @@ public class DeviceMeasurementService {
     private final DeviceRepository deviceRepository;
     private final DeviceMeasurementRepository measurementRepository;
     private final ApplicationEventPublisher eventPublisher;
+    private final DeviceStatisticsService statisticsService;
 
     public DeviceMeasurementService(
             DeviceRepository deviceRepository,
             DeviceMeasurementRepository measurementRepository,
-            ApplicationEventPublisher eventPublisher
+            ApplicationEventPublisher eventPublisher,
+            DeviceStatisticsService statisticsService
     ) {
         this.deviceRepository = deviceRepository;
         this.measurementRepository = measurementRepository;
         this.eventPublisher = eventPublisher;
+        this.statisticsService = statisticsService;
     }
 
     @Transactional
@@ -59,6 +63,7 @@ public class DeviceMeasurementService {
         measurement.setHeartRate(message.heartRate());
         measurement.setSpo2(message.spo2());
         measurementRepository.save(measurement);
+        statisticsService.updateFromMeasurement(device, measurement);
 
         eventPublisher.publishEvent(new DeviceMeasurementSavedEvent(
                 device.getDeviceId(),
