@@ -34,6 +34,7 @@
 | **Get Device By Id** | `GET` | `/api/v1/devices/{deviceId}` | `Authenticated` | Yes | `200` | **Path param:** `deviceId` |
 | **Get Latest Measurement** | `GET` | `/api/v1/devices/{deviceId}/measurements/latest` | `Authenticated` | Yes | `200` | **Path param:** `deviceId` |
 | **Get Device Measurements** | `GET` | `/api/v1/devices/{deviceId}/measurements` | `Authenticated` | Yes | `200` | **Path param:** `deviceId`, **Query param:** `limit` (default: `120`) |
+| **Get Device Statistics** | `GET` | `/api/v1/devices/{deviceId}/statistics` | `Authenticated` | Yes | `200` | **Path param:** `deviceId`, **Query param:** `minutes` (default: `10`, max: `60`) |
 
 ## Relative Module 
 
