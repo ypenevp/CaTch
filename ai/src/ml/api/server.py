@@ -14,7 +14,7 @@ from src.ml.engines.inference import FallDetector
 
 CHECKPOINT_PATH = ROOT_DIR / "artifacts" / "fall_net.pt"
 HOST = "127.0.0.1"
-PORT = 7070
+PORT = 8000
 
 FiniteFloat = Annotated[float, Field(allow_inf_nan=False)]
 

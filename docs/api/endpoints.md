@@ -54,3 +54,12 @@
 | **Get Linked User's Device By Id** | `GET` | `/api/v1/relatives/users/{userId}/devices/{deviceId}` | `RELATIVE` | Yes | `200` | **Path params:** `userId`, `deviceId` |
 | **Get Linked User's Latest Measurement** | `GET` | `/api/v1/relatives/users/{userId}/devices/{deviceId}/measurements/latest` | `RELATIVE` | Yes | `200` | **Path params:** `userId`, `deviceId` |
 | **Get Linked User's Device Measurements** | `GET` | `/api/v1/relatives/users/{userId}/devices/{deviceId}/measurements` | `RELATIVE` | Yes | `200` | **Path params:** `userId`, `deviceId`, **Query param:** `limit` (default: `120`) |
+
+## AI Analysis Module 
+
+- Base URL: `/api/v1/devices/{deviceId}/analyses`
+
+| Description | Method | Full URL | Required Role | Bearer JWT Required? | Expected Status | Parameters |
+| :--- | :--- | :--- | :--- | :--- | :--- | :--- |
+| **Get Device Analyses** | `GET` | `/api/v1/devices/{deviceId}/analyses` | `Authenticated` | Yes | `200` | **Path param:** `deviceId`, **Query params:** `fallsOnly` (default: `false`), `page`, `size`, `sort` |
+| **Get Latest Analysis** | `GET` | `/api/v1/devices/{deviceId}/analyses/latest` | `Authenticated` | Yes | `200` | **Path param:** `deviceId` |
