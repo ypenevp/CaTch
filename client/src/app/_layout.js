@@ -10,6 +10,7 @@ import {
 } from "@expo-google-fonts/outfit";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { queryClient, subscribeAppFocus } from "@/lib/queryClient";
+import { useRealtimeConnection } from "@/hooks/useRealtimeConnection";
 import BottomNav from "@/components/bottomNav";
 import TopNav from "@/components/topNav";
 import Login from "@/components/logIn";
@@ -42,6 +43,8 @@ export default function Layout() {
   }, []);
 
   useEffect(() => subscribeAppFocus(), []);
+
+  useRealtimeConnection();
 
   useEffect(() => {
     if (modal === 'login') setScreen('login');

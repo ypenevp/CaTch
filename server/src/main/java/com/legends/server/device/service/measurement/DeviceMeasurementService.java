@@ -1,12 +1,15 @@
 package com.legends.server.device.service.measurement;
 
+import com.legends.server.device.dto.response.DeviceMeasurementResponse;
 import com.legends.server.device.entity.Device;
 import com.legends.server.device.entity.DeviceMeasurement;
 import com.legends.server.device.entity.DeviceStatus;
+import com.legends.server.device.event.DeviceMeasurementSavedEvent;
 import com.legends.server.device.mqtt.message.DeviceMeasurementMessage;
 import com.legends.server.device.repository.DeviceMeasurementRepository;
 import com.legends.server.device.repository.DeviceRepository;
 import com.legends.server.exception.custom.ResourceNotFoundException;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -17,13 +20,16 @@ public class DeviceMeasurementService {
 
     private final DeviceRepository deviceRepository;
     private final DeviceMeasurementRepository measurementRepository;
+    private final ApplicationEventPublisher eventPublisher;
 
     public DeviceMeasurementService(
             DeviceRepository deviceRepository,
-            DeviceMeasurementRepository measurementRepository
+            DeviceMeasurementRepository measurementRepository,
+            ApplicationEventPublisher eventPublisher
     ) {
         this.deviceRepository = deviceRepository;
         this.measurementRepository = measurementRepository;
+        this.eventPublisher = eventPublisher;
     }
 
     @Transactional
@@ -53,5 +59,10 @@ public class DeviceMeasurementService {
         measurement.setHeartRate(message.heartRate());
         measurement.setSpo2(message.spo2());
         measurementRepository.save(measurement);
+
+        eventPublisher.publishEvent(new DeviceMeasurementSavedEvent(
+                device.getDeviceId(),
+                DeviceMeasurementResponse.from(measurement)
+        ));
     }
 }

@@ -63,3 +63,17 @@
 | :--- | :--- | :--- | :--- | :--- | :--- | :--- |
 | **Get Device Analyses** | `GET` | `/api/v1/devices/{deviceId}/analyses` | `Authenticated` | Yes | `200` | **Path param:** `deviceId`, **Query params:** `fallsOnly` (default: `false`), `page`, `size`, `sort` |
 | **Get Latest Analysis** | `GET` | `/api/v1/devices/{deviceId}/analyses/latest` | `Authenticated` | Yes | `200` | **Path param:** `deviceId` |
+
+## Real-time (WebSocket / STOMP)
+
+- Endpoint: `ws://<host>:<port>/ws` (`wss://` in production), plain WebSocket, no SockJS.
+- Authentication: STOMP `CONNECT` header `Authorization: Bearer <accessToken>`. An invalid or missing token gets an `ERROR` frame with `message: Authentication required`.
+- Heartbeat: 10 s / 10 s. Clients only subscribe; `SEND` frames are rejected.
+
+| Description | Destination | Who can subscribe | Message |
+| :--- | :--- | :--- | :--- |
+| **Device events** | `/topic/devices/{deviceId}` | Device owner, relatives with an `ACCEPTED` link | `{ "type": "measurement" \| "analysis" \| "status", "data": ... }` |
+
+- `measurement`: same body as **Get Latest Measurement**, sent for every reading.
+- `analysis`: same body as **Get Latest Analysis**, sent for every new AI analysis.
+- `status`: `{ deviceId, online, lastSeen }`, sent when the device comes online or stops sending for `app.device.online-threshold-seconds`.

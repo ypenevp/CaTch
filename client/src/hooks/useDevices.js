@@ -1,9 +1,12 @@
 import { useEffect } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useRealtimeConnected } from "@/hooks/useRealtimeConnected";
+import { isMockDevice } from "@/mocks/devices";
 import {
   cancelPairing,
   createPairing,
   getDevice,
+  getLatestAnalysis,
   getLatestMeasurement,
   getMeasurements,
   getMyDevices,
@@ -20,53 +23,76 @@ export const deviceKeys = {
   list: () => [...deviceKeys.all, "list"],
   detail: (deviceId) => [...deviceKeys.all, "detail", deviceId],
   latest: (deviceId) => [...deviceKeys.detail(deviceId), "latest"],
-  measurements: (deviceId, limit) => [...deviceKeys.detail(deviceId), "measurements", limit],
+  measurementLists: (deviceId) => [...deviceKeys.detail(deviceId), "measurements"],
+  measurements: (deviceId, limit) => [...deviceKeys.measurementLists(deviceId), limit],
+  latestAnalysis: (deviceId) => [...deviceKeys.detail(deviceId), "analysis", "latest"],
   pairing: (pairingId) => [...deviceKeys.all, "pairing", pairingId],
 };
 
+function usePollWhenOffline(live, deviceId) {
+  const connected = useRealtimeConnected();
+  return live && (!connected || isMockDevice(deviceId));
+}
+
+async function nullWhenNotFound(request) {
+  try {
+    return await request();
+  } catch (error) {
+    if (error.status === 404) return null;
+    throw error;
+  }
+}
+
 export function useDevices({ live = false } = {}) {
   const isLoggedIn = useAuthStore((s) => !!s.user);
+  const poll = usePollWhenOffline(live);
   return useQuery({
     queryKey: deviceKeys.list(),
     queryFn: ({ signal }) => getMyDevices({ signal }),
     select: (page) => page.content,
     enabled: isLoggedIn,
-    refetchInterval: live ? LIVE_REFETCH_MS : false,
+    refetchInterval: poll ? LIVE_REFETCH_MS : false,
   });
 }
 
 export function useDevice(deviceId, { live = false } = {}) {
+  const poll = usePollWhenOffline(live, deviceId);
   return useQuery({
     queryKey: deviceKeys.detail(deviceId),
     queryFn: ({ signal }) => getDevice(deviceId, { signal }),
     enabled: !!deviceId,
-    refetchInterval: live ? DEVICE_LIVE_MS : false,
+    refetchInterval: poll ? DEVICE_LIVE_MS : false,
   });
 }
 
 export function useLatestMeasurement(deviceId, { live = false } = {}) {
+  const poll = usePollWhenOffline(live, deviceId);
   return useQuery({
     queryKey: deviceKeys.latest(deviceId),
-    queryFn: async ({ signal }) => {
-      try {
-        return await getLatestMeasurement(deviceId, { signal });
-      } catch (error) {
-        if (error.status === 404) return null;
-        throw error;
-      }
-    },
+    queryFn: ({ signal }) => nullWhenNotFound(() => getLatestMeasurement(deviceId, { signal })),
     enabled: !!deviceId,
-    refetchInterval: live ? DEVICE_LIVE_MS : false,
+    refetchInterval: poll ? DEVICE_LIVE_MS : false,
   });
 }
 
 export function useMeasurements(deviceId, { limit = 20, live = false } = {}) {
+  const poll = usePollWhenOffline(live, deviceId);
   return useQuery({
     queryKey: deviceKeys.measurements(deviceId, limit),
     queryFn: ({ signal }) => getMeasurements(deviceId, { limit, signal }),
     select: (page) => page.content,
     enabled: !!deviceId,
-    refetchInterval: live ? LIVE_REFETCH_MS : false,
+    refetchInterval: poll ? LIVE_REFETCH_MS : false,
+  });
+}
+
+export function useLatestAnalysis(deviceId, { live = false } = {}) {
+  const poll = usePollWhenOffline(live, deviceId);
+  return useQuery({
+    queryKey: deviceKeys.latestAnalysis(deviceId),
+    queryFn: ({ signal }) => nullWhenNotFound(() => getLatestAnalysis(deviceId, { signal })),
+    enabled: !!deviceId,
+    refetchInterval: poll ? LIVE_REFETCH_MS : false,
   });
 }
 

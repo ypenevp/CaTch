@@ -6,6 +6,7 @@ import com.legends.server.ai.dto.response.AiAnalysisResponse;
 import com.legends.server.ai.dto.response.FallAssessmentResponse;
 import com.legends.server.ai.dto.response.FallDetectionResponse;
 import com.legends.server.ai.entity.AiAnalysis;
+import com.legends.server.ai.event.AiAnalysisSavedEvent;
 import com.legends.server.ai.repository.AiAnalysisRepository;
 import com.legends.server.config.ai.AiProperties;
 import com.legends.server.device.entity.Device;
@@ -14,6 +15,7 @@ import com.legends.server.device.entity.DeviceStatus;
 import com.legends.server.device.repository.DeviceMeasurementRepository;
 import com.legends.server.device.repository.DeviceRepository;
 import com.legends.server.exception.custom.ResourceNotFoundException;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -33,17 +35,20 @@ public class AiAnalysisService {
     private final DeviceRepository deviceRepository;
     private final DeviceMeasurementRepository measurementRepository;
     private final AiProperties properties;
+    private final ApplicationEventPublisher eventPublisher;
 
     public AiAnalysisService(
             AiAnalysisRepository analysisRepository,
             DeviceRepository deviceRepository,
             DeviceMeasurementRepository measurementRepository,
-            AiProperties properties
+            AiProperties properties,
+            ApplicationEventPublisher eventPublisher
     ) {
         this.analysisRepository = analysisRepository;
         this.deviceRepository = deviceRepository;
         this.measurementRepository = measurementRepository;
         this.properties = properties;
+        this.eventPublisher = eventPublisher;
     }
 
     @Transactional(readOnly = true)
@@ -136,7 +141,9 @@ public class AiAnalysisService {
         analysis.setWindowEndAt(window.windowEndAt());
         analysis.setLastMeasurementId(window.lastMeasurementId());
 
-        return AiAnalysisResponse.from(analysisRepository.save(analysis));
+        AiAnalysisResponse saved = AiAnalysisResponse.from(analysisRepository.save(analysis));
+        eventPublisher.publishEvent(new AiAnalysisSavedEvent(saved));
+        return saved;
     }
 
     @Transactional(readOnly = true)

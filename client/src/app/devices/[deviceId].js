@@ -7,13 +7,18 @@ import PostureFigure, { POSTURE_LABELS } from "@/components/PostureFigure";
 import RetryBox from "@/components/RetryBox";
 import VitalRing from "@/components/VitalRing";
 import VitalsTrend from "@/components/VitalsTrend";
-import { useDevice, useLatestMeasurement, useMeasurements } from "@/hooks/useDevices";
+import { useDeviceEvents } from "@/hooks/useDeviceEvents";
+import { useDevice, useLatestAnalysis, useLatestMeasurement, useMeasurements } from "@/hooks/useDevices";
 import { MOCK_WEARER } from "@/mocks/wearer";
 import useAuthStore from "@/store/AuthStore";
 import { formatLastSeen } from "@/utils/formatLastSeen";
+import { postureFromAnalysis } from "@/utils/postureFromAnalysis";
 import { theme } from "@/theme/theme";
 
 const TREND_LIMIT = 120;
+const DEFAULT_POSTURE = "sitting";
+const STEPS_GOAL = 6000;
+const STEPS_RING = 108;
 const VITALS_W = 104;
 const HR_SCALE = [40, 160];
 const SPO2_SCALE = [85, 100];
@@ -67,11 +72,16 @@ function RingWithCaption({ caption, children }) {
   );
 }
 
-function LatestReading({ query, measurements = [], online, active }) {
+function postureText(posture, online) {
+  if (!posture) return "No activity yet";
+  return online ? POSTURE_LABELS[posture] : `Last known: ${POSTURE_LABELS[posture]}`;
+}
+
+function LatestReading({ query, analysis, measurements = [], online, active }) {
   const [cardWidth, setCardWidth] = useState(0);
   const { data: latest, isLoading, error, refetch, isFetching } = query;
 
-  const posture = MOCK_WEARER.posture;
+  const posture = postureFromAnalysis(analysis);
   const fallen = posture === "fallen" && online;
   const figureWidth = cardWidth - theme.space.lg * 2 - theme.space.md - VITALS_W;
   const heartRate = latest?.heartRate ?? null;
@@ -94,7 +104,7 @@ function LatestReading({ query, measurements = [], online, active }) {
         <View style={{ flex: 1, alignItems: "center" }}>
           {cardWidth > 0 && (
             <PostureFigure
-              posture={posture}
+              posture={posture ?? DEFAULT_POSTURE}
               bpm={latest?.heartRate}
               online={online}
               active={active}
@@ -103,9 +113,9 @@ function LatestReading({ query, measurements = [], online, active }) {
           )}
           <Text style={{
             fontFamily: theme.font.semibold, fontSize: theme.size.lg, marginTop: theme.space.sm, textAlign: "center",
-            color: fallen ? theme.danger : online ? theme.text : theme.textMuted,
+            color: fallen ? theme.danger : online && posture ? theme.text : theme.textMuted,
           }}>
-            {online ? POSTURE_LABELS[posture] : `Last known: ${POSTURE_LABELS[posture]}`}
+            {postureText(posture, online)}
           </Text>
         </View>
 
@@ -170,9 +180,11 @@ export default function DeviceDetails() {
   const isLoggedIn = useAuthStore((s) => !!s.user);
   const live = useIsFocused();
 
+  useDeviceEvents([deviceId], { enabled: live });
   const device = useDevice(deviceId, { live });
   const latest = useLatestMeasurement(deviceId, { live });
   const history = useMeasurements(deviceId, { limit: TREND_LIMIT, live });
+  const analysis = useLatestAnalysis(deviceId, { live });
 
   const goBack = () => (router.canGoBack() ? router.back() : router.replace("/"));
 
@@ -180,6 +192,7 @@ export default function DeviceDetails() {
 
   const online = !!device.data?.online;
   const sex = MOCK_WEARER.sex;
+  const stepsToday = MOCK_WEARER.stepsToday;
 
   return (
     <ScrollView
@@ -205,33 +218,43 @@ export default function DeviceDetails() {
         </Text>
       </View>
 
-      <View style={{ ...card, flexDirection: "row", alignItems: "center", gap: theme.space.md, padding: theme.space.lg, marginTop: theme.space.lg }}>
-        <View style={{
-          width: 44, height: 44, borderRadius: 12, backgroundColor: theme.primarySoft,
-          alignItems: "center", justifyContent: "center",
-        }}>
-          <MaterialCommunityIcons name="watch-variant" size={22} color={theme.primary} />
-        </View>
-        <View style={{ flex: 1 }}>
-          <View style={{ flexDirection: "row", alignItems: "center", gap: theme.space.sm }}>
-            <Text numberOfLines={1} style={{ flexShrink: 1, fontFamily: theme.font.semibold, fontSize: theme.size.lg, color: theme.text }}>
-              {deviceId}
-            </Text>
-            {device.data && <StatusDot online={online} />}
+      <View style={{
+        flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: theme.space.md,
+        paddingHorizontal: theme.space.xl, marginTop: theme.space.lg,
+      }}>
+        <View style={{ flexShrink: 1, flexDirection: "row", alignItems: "center", gap: theme.space.md }}>
+          <View style={{
+            width: 44, height: 44, borderRadius: 12, backgroundColor: theme.primarySoft,
+            alignItems: "center", justifyContent: "center",
+          }}>
+            <MaterialCommunityIcons name="watch-variant" size={22} color={theme.primary} />
           </View>
-          {device.data && !online && (
-            <Text style={{ fontFamily: theme.font.regular, fontSize: theme.size.xs, color: theme.textMuted, marginTop: 2 }}>
-              {formatLastSeen(device.data.lastSeen)}
-            </Text>
-          )}
-          <View style={{ flexDirection: "row", alignItems: "center", gap: theme.space.xs, marginTop: theme.space.sm }}>
-            <MaterialCommunityIcons name={sex === "male" ? "gender-male" : "gender-female"} size={16} color={theme.textMuted} />
-            <Text style={{ fontFamily: theme.font.regular, fontSize: theme.size.sm, color: theme.textMuted }}>
-              Wearer ·{" "}
-              <Text style={{ fontFamily: theme.font.medium, color: theme.text }}>{SEX_LABELS[sex]}</Text>
-            </Text>
+          <View style={{ flexShrink: 1 }}>
+            <View style={{ flexDirection: "row", alignItems: "center", gap: theme.space.sm }}>
+              <Text numberOfLines={1} style={{ flexShrink: 1, fontFamily: theme.font.semibold, fontSize: theme.size.lg, color: theme.text }}>
+                {deviceId}
+              </Text>
+              {device.data && <StatusDot online={online} />}
+            </View>
+            {device.data && !online && (
+              <Text style={{ fontFamily: theme.font.regular, fontSize: theme.size.xs, color: theme.textMuted, marginTop: 2 }}>
+                {formatLastSeen(device.data.lastSeen)}
+              </Text>
+            )}
+            <View style={{ flexDirection: "row", alignItems: "center", gap: theme.space.xs, marginTop: theme.space.sm }}>
+              <MaterialCommunityIcons name={sex === "male" ? "gender-male" : "gender-female"} size={16} color={theme.textMuted} />
+              <Text style={{ fontFamily: theme.font.regular, fontSize: theme.size.sm, color: theme.textMuted }}>
+                Wearer ·{" "}
+                <Text style={{ fontFamily: theme.font.medium, color: theme.text }}>{SEX_LABELS[sex]}</Text>
+              </Text>
+            </View>
           </View>
         </View>
+        <VitalRing
+          value={stepsToday} min={0} max={STEPS_GOAL}
+          label="steps" icon="footsteps" name="Steps today" unit="steps" metric={theme.metric.steps}
+          online={online} active={false} size={STEPS_RING}
+        />
       </View>
 
       {device.isLoading ? (
@@ -242,7 +265,7 @@ export default function DeviceDetails() {
         </View>
       ) : (
         <>
-          <LatestReading query={latest} measurements={history.data ?? []} online={online} active={live} />
+          <LatestReading query={latest} analysis={analysis.data} measurements={history.data ?? []} online={online} active={live} />
           <Trends query={history} />
         </>
       )}

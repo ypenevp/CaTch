@@ -35,7 +35,7 @@ function errorMessage(data, status) {
 }
 
 let refreshPromise = null;
-function refreshAccessToken() {
+export function refreshAccessToken() {
   if (!refreshPromise) {
     refreshPromise = useAuthStore
       .getState()

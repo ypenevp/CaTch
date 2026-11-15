@@ -2,6 +2,7 @@ import { api } from "@/services/apiClient";
 import {
   MOCK_DEVICES_ENABLED,
   getMockDevice,
+  getMockLatestAnalysis,
   getMockLatestMeasurement,
   getMockMeasurements,
   isMockDevice,
@@ -26,6 +27,11 @@ export const getLatestMeasurement = async (deviceId, { signal } = {}) => {
 export const getMeasurements = async (deviceId, { limit, signal } = {}) => {
   if (isMockDevice(deviceId)) return getMockMeasurements(deviceId, { limit });
   return api.get(`/api/v1/devices/${encodeURIComponent(deviceId)}/measurements?limit=${limit}`, { signal });
+};
+
+export const getLatestAnalysis = async (deviceId, { signal } = {}) => {
+  if (isMockDevice(deviceId)) return getMockLatestAnalysis(deviceId);
+  return api.get(`/api/v1/devices/${encodeURIComponent(deviceId)}/analyses/latest`, { signal });
 };
 
 export const createPairing = async ({ deviceId }) => {

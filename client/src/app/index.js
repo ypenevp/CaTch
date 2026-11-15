@@ -5,6 +5,7 @@ import BraceletArt from "@/components/BraceletArt";
 import PrimaryButton from "@/components/PrimaryButton";
 import RetryBox from "@/components/RetryBox";
 import { useProfile } from "@/hooks/useProfile";
+import { useDeviceEvents } from "@/hooks/useDeviceEvents";
 import { useDevices } from "@/hooks/useDevices";
 import { formatLastSeen } from "@/utils/formatLastSeen";
 import useAuthStore from "../store/AuthStore.js";
@@ -223,6 +224,7 @@ function UserHome({ onAddDevice }) {
   const router = useRouter();
   const isFocused = useIsFocused();
   const { data: devices, isLoading, error, refetch, isFetching } = useDevices({ live: isFocused });
+  useDeviceEvents((devices ?? []).map((device) => device.deviceId), { enabled: isFocused });
 
   return (
     <>

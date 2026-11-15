@@ -1,5 +1,6 @@
 import { useEffect, useId, useState } from "react";
 import { Pressable, Text, View } from "react-native";
+import { Ionicons } from "@expo/vector-icons";
 import Svg, { Circle, Defs, LinearGradient, Stop } from "react-native-svg";
 import Animated, {
   cancelAnimation,
@@ -33,6 +34,7 @@ export default function VitalRing({
   max,
   range = null,
   label,
+  icon = null,
   name,
   unit,
   metric,
@@ -85,9 +87,10 @@ export default function VitalRing({
   return (
     <Pressable
       onPress={() => setShowRange((v) => !v)}
+      disabled={!range}
       accessibilityRole="button"
       accessibilityLabel={`${name}: ${has ? `${display} ${unit}` : "no data"}${online ? "" : ", last known"}`}
-      accessibilityHint={showRange ? "Hides the last 2 minutes" : "Shows the range of the last 2 minutes"}
+      accessibilityHint={range ? (showRange ? "Hides the last 2 minutes" : "Shows the range of the last 2 minutes") : undefined}
       accessibilityState={{ selected: showRange }}
       style={({ pressed }) => ({ width: size, height: size, transform: [{ scale: pressed ? 0.97 : 1 }] })}
     >
@@ -129,15 +132,24 @@ export default function VitalRing({
       </Svg>
 
       <View pointerEvents="none" style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0, alignItems: "center", justifyContent: "center" }}>
-        <Text style={{
-          fontFamily: theme.font.regular, fontSize: theme.size.display - 2, color: online ? theme.text : theme.textMuted,
-          fontVariant: ["tabular-nums"], includeFontPadding: false,
-        }}>
+        <Text
+          numberOfLines={1}
+          adjustsFontSizeToFit
+          style={{
+            maxWidth: size * 0.64,
+            fontFamily: theme.font.regular, fontSize: theme.size.display - 2, color: online ? theme.text : theme.textMuted,
+            fontVariant: ["tabular-nums"], includeFontPadding: false,
+          }}
+        >
           {display}
         </Text>
-        <Text style={{ fontFamily: theme.font.medium, fontSize: theme.size.xxs, letterSpacing: 1.2, color: theme.textMuted, marginTop: 2 }}>
-          {label.toUpperCase()}
-        </Text>
+        {icon ? (
+          <Ionicons name={icon} size={theme.size.xs} color={theme.textMuted} style={{ marginTop: 2 }} />
+        ) : (
+          <Text style={{ fontFamily: theme.font.medium, fontSize: theme.size.xxs, letterSpacing: 1.2, color: theme.textMuted, marginTop: 2 }}>
+            {label.toUpperCase()}
+          </Text>
+        )}
         {shown && (
           <Text style={{ fontFamily: theme.font.regular, fontSize: theme.size.xxs, color: theme.textMuted, fontVariant: ["tabular-nums"] }}>
             {Math.round(range.lo)}–{Math.round(range.hi)}

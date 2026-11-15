@@ -1,5 +1,6 @@
 package com.legends.server.config.security;
 
+import com.legends.server.realtime.DeviceTopics;
 import com.legends.server.security.JwtAuthenticationFilter;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -51,6 +52,8 @@ public class SecurityConfig {
                         .requestMatchers("/api/v1/auth/forgot-password").permitAll()
                         .requestMatchers("/api/v1/auth/reset-password").permitAll()
                         .requestMatchers("/api/v1/device-claims/claim").permitAll()
+                        // the WebSocket handshake is open; the STOMP CONNECT frame carries the JWT (StompAuthInterceptor)
+                        .requestMatchers(DeviceTopics.ENDPOINT).permitAll()
                         .anyRequest().authenticated()
                 )
                 .exceptionHandling(ex -> ex

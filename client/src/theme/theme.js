@@ -31,6 +31,7 @@ export const theme = {
     heart: { color: '#E11D48', bg: '#FFF1F2', light: '#FDA4AF' },
     oxygen: { color: '#0369A1', bg: '#F0F9FF', light: '#7DD3FC' },
     fall: { color: '#0F766E', bg: '#F0FDFA' },
+    steps: { color: '#15803D', bg: '#F0FDF4', light: '#86EFAC' },
   },
 
   figure: {

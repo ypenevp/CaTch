@@ -1,3 +1,4 @@
+import { MOCK_WEARER } from "@/mocks/wearer";
 import { ApiError } from "@/services/apiClient";
 
 export const MOCK_DEVICES_ENABLED = __DEV__ && true;
@@ -11,6 +12,8 @@ const MOCKS = {
   MOCK_BRACELET_02: { id: -2, lastSeenAgoMs: 2 * HOUR_MS, baseHeartRate: 64, baseSpo2: null },
   MOCK_BRACELET_03: { id: -3, lastSeenAgoMs: null },
 };
+
+const MOCK_ACTIVITY = { walking: "walking", sitting: "still", lying: "lie_getup_transition", fallen: "fall" };
 
 const wait = () => new Promise((resolve) => setTimeout(resolve, MOCK_DELAY_MS));
 
@@ -67,6 +70,18 @@ export const getMockLatestMeasurement = async (deviceId) => {
   const seen = lastSeenMs(mock);
   if (seen == null) throw new ApiError(404, "Measurement not found");
   return sample(mock, seen);
+};
+
+export const getMockLatestAnalysis = async (deviceId) => {
+  await wait();
+  const seen = lastSeenMs(MOCKS[deviceId]);
+  if (seen == null) throw new ApiError(404, "Analysis not found");
+  return {
+    deviceId,
+    activity: MOCK_ACTIVITY[MOCK_WEARER.posture],
+    fallDetected: MOCK_WEARER.posture === "fallen",
+    analyzedAt: new Date(seen).toISOString(),
+  };
 };
 
 export const getMockMeasurements = async (deviceId, { limit }) => {
