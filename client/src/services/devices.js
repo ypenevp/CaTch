@@ -5,6 +5,7 @@ import {
   getMockLatestAnalysis,
   getMockLatestMeasurement,
   getMockMeasurements,
+  getMockStatistics,
   isMockDevice,
   withMockDevices,
 } from "@/mocks/devices";
@@ -27,6 +28,11 @@ export const getLatestMeasurement = async (deviceId, { signal } = {}) => {
 export const getMeasurements = async (deviceId, { limit, signal } = {}) => {
   if (isMockDevice(deviceId)) return getMockMeasurements(deviceId, { limit });
   return api.get(`/api/v1/devices/${encodeURIComponent(deviceId)}/measurements?limit=${limit}`, { signal });
+};
+
+export const getStatistics = async (deviceId, { minutes, signal } = {}) => {
+  if (isMockDevice(deviceId)) return getMockStatistics(deviceId, { minutes });
+  return api.get(`/api/v1/devices/${encodeURIComponent(deviceId)}/statistics?minutes=${minutes}`, { signal });
 };
 
 export const getLatestAnalysis = async (deviceId, { signal } = {}) => {

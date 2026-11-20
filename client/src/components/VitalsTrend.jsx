@@ -1,17 +1,20 @@
 import { useMemo, useState } from "react";
-import { ScrollView, Text, TouchableOpacity, View } from "react-native";
+import { ActivityIndicator, ScrollView, Text, TouchableOpacity, View } from "react-native";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import Svg, { Circle, Line, Path, Text as SvgText } from "react-native-svg";
+import ErrorBox from "@/components/ErrorBox";
 import { formatClockTime } from "@/utils/formatClockTime";
 import { theme } from "@/theme/theme";
 
 const CHART_H = 160;
 const PAD = { l: 34, r: 10, t: 12, b: 24 };
 const TABLE_MAX_H = 260;
+const LIVE_MAX_GAP_MS = 5000;
+const STATISTICS_MAX_GAP_BUCKETS = 3;
 
 const METRICS = {
-  heartRate: { label: "Heart rate", unit: "bpm", color: theme.metric.heart.color, step: 10 },
-  spo2: { label: "Blood oxygen", unit: "%", color: theme.metric.oxygen.color, step: 1, tight: true },
+  heartRate: { label: "Heart rate", unit: "bpm", color: theme.metric.heart.color, step: 10, averageKey: "heartRateAverage" },
+  spo2: { label: "Blood oxygen", unit: "%", color: theme.metric.oxygen.color, step: 1, tight: true, averageKey: "spo2Average" },
 };
 
 const muted = { fontFamily: theme.font.regular, fontSize: theme.size.xs, color: theme.textMuted };
@@ -25,20 +28,60 @@ function summarize(points) {
   };
 }
 
-function Chart({ points, metric, width }) {
+function fromMeasurements(measurements, metric) {
+  const points = measurements
+    .filter((x) => x[metric] != null)
+    .map((x) => ({ at: Date.parse(x.measuredAt), value: Math.round(x[metric]) }))
+    .reverse();
+  if (points.length < 2) return null;
+
+  return {
+    points,
+    summary: summarize(points),
+    from: points[0].at,
+    to: points[points.length - 1].at,
+    maxGapMs: LIVE_MAX_GAP_MS,
+    rangeLabel: `last ${points.length} readings`,
+    averaged: false,
+  };
+}
+
+function fromStatistics(statistics, metric) {
+  const key = METRICS[metric].averageKey;
+  const total = statistics[metric];
+  const points = statistics.points
+    .filter((p) => p[key] != null)
+    .map((p) => ({ at: Date.parse(p.start), value: Math.round(p[key]) }));
+  if (points.length < 2 || !total?.samples) return null;
+
+  const from = Date.parse(statistics.from);
+  const to = Date.parse(statistics.to);
+  return {
+    points,
+    summary: { min: Math.round(total.min), avg: Math.round(total.average), max: Math.round(total.max) },
+    from,
+    to,
+    maxGapMs: statistics.bucketSeconds * 1000 * STATISTICS_MAX_GAP_BUCKETS,
+    rangeLabel: `last ${Math.round((to - from) / 60000)} minutes`,
+    averaged: true,
+  };
+}
+
+function Chart({ series, metric, width }) {
   const [index, setIndex] = useState(null);
   const m = METRICS[metric];
-  const stats = summarize(points);
+  const { points, summary, from, to, maxGapMs, rangeLabel, averaged } = series;
+  const axis = summarize(points);
 
   let lo;
   let hi;
   if (m.tight) {
-    const pad = Math.max(m.step / 2, (stats.max - stats.min) * 0.25);
-    lo = stats.min - pad;
-    hi = stats.max + pad;
+    const pad = Math.max(m.step / 2, (axis.max - axis.min) * 0.25);
+    lo = axis.min - pad;
+    hi = axis.max + pad;
   } else {
-    lo = Math.floor((stats.min - m.step * 0.3) / m.step) * m.step;
-    hi = Math.ceil((stats.max + m.step * 0.3) / m.step) * m.step;
+    lo = Math.floor((axis.min - m.step * 0.3) / m.step) * m.step;
+    hi = Math.ceil((axis.max + m.step * 0.3) / m.step) * m.step;
     if (hi - lo < m.step * 2) hi = lo + m.step * 2;
   }
   let ticks = [];
@@ -47,19 +90,32 @@ function Chart({ points, metric, width }) {
 
   const plotW = width - PAD.l - PAD.r;
   const plotH = CHART_H - PAD.t - PAD.b;
-  const xs = (i) => PAD.l + (i / (points.length - 1)) * plotW;
+  const span = Math.max(1, to - from);
+  const xs = (t) => PAD.l + ((t - from) / span) * plotW;
   const ys = (v) => PAD.t + (1 - (v - lo) / (hi - lo)) * plotH;
-  const d = points.map((p, i) => `${i ? "L" : "M"}${xs(i).toFixed(1)} ${ys(p.value).toFixed(1)}`).join("");
+  const d = points
+    .map((p, i) => {
+      const jump = i === 0 || p.at - points[i - 1].at > maxGapMs;
+      return `${jump ? "M" : "L"}${xs(p.at).toFixed(1)} ${ys(p.value).toFixed(1)}`;
+    })
+    .join("");
   const last = points[points.length - 1];
 
-  const pick = (x) => setIndex(Math.max(0, Math.min(points.length - 1, Math.round(((x - PAD.l) / plotW) * (points.length - 1)))));
+  const pick = (x) => {
+    const t = from + ((x - PAD.l) / plotW) * span;
+    let best = 0;
+    points.forEach((p, i) => {
+      if (Math.abs(p.at - t) < Math.abs(points[best].at - t)) best = i;
+    });
+    setIndex(best);
+  };
   const focus = index == null ? null : points[index];
-  const tipLeft = focus ? Math.max(0, Math.min(width - 110, xs(index) - 55)) : 0;
+  const tipLeft = focus ? Math.max(0, Math.min(width - 110, xs(focus.at) - 55)) : 0;
 
   return (
     <View
       accessible
-      accessibilityLabel={`${m.label}, last ${points.length} readings: minimum ${stats.min}, average ${stats.avg}, maximum ${stats.max} ${m.unit}`}
+      accessibilityLabel={`${m.label}, ${rangeLabel}: minimum ${summary.min}, average ${summary.avg}, maximum ${summary.max} ${m.unit}`}
       style={{ height: CHART_H }}
     >
       <Svg width={width} height={CHART_H}>
@@ -72,19 +128,19 @@ function Chart({ points, metric, width }) {
           </SvgText>
         ))}
         <SvgText x={PAD.l} y={CHART_H - 6} fontSize={theme.size.xs} fontFamily={theme.font.regular} fill={theme.textMuted}>
-          {formatClockTime(points[0].at)}
+          {formatClockTime(from)}
         </SvgText>
         <SvgText x={width - PAD.r} y={CHART_H - 6} textAnchor="end" fontSize={theme.size.xs} fontFamily={theme.font.regular} fill={theme.textMuted}>
           Now
         </SvgText>
 
         <Path d={d} stroke={m.color} strokeWidth={2} fill="none" strokeLinecap="round" strokeLinejoin="round" />
-        <Circle cx={xs(points.length - 1)} cy={ys(last.value)} r={4} fill={m.color} stroke={theme.surface} strokeWidth={2} />
+        <Circle cx={xs(last.at)} cy={ys(last.value)} r={4} fill={m.color} stroke={theme.surface} strokeWidth={2} />
 
         {focus && (
           <>
-            <Line x1={xs(index)} x2={xs(index)} y1={PAD.t} y2={PAD.t + plotH} stroke={theme.textMuted} strokeWidth={1} strokeDasharray="3 3" />
-            <Circle cx={xs(index)} cy={ys(focus.value)} r={5} fill={m.color} stroke={theme.surface} strokeWidth={2} />
+            <Line x1={xs(focus.at)} x2={xs(focus.at)} y1={PAD.t} y2={PAD.t + plotH} stroke={theme.textMuted} strokeWidth={1} strokeDasharray="3 3" />
+            <Circle cx={xs(focus.at)} cy={ys(focus.value)} r={5} fill={m.color} stroke={theme.surface} strokeWidth={2} />
           </>
         )}
       </Svg>
@@ -110,7 +166,7 @@ function Chart({ points, metric, width }) {
           }}
         >
           <Text style={{ fontFamily: theme.font.semibold, fontSize: theme.size.md, color: theme.onPrimary }}>
-            {focus.value} {m.unit}
+            {averaged ? "Avg " : ""}{focus.value} {m.unit}
           </Text>
           <Text style={{ fontFamily: theme.font.regular, fontSize: theme.size.xs, color: theme.onPrimary }}>
             {formatClockTime(focus.at)}
@@ -136,21 +192,59 @@ function Stat({ label, value, unit, divider }) {
   );
 }
 
-export default function VitalsTrend({ measurements = [] }) {
+function PeriodChips({ periods, value, onChange }) {
+  return (
+    <View style={{ flexDirection: "row", flexWrap: "wrap", gap: theme.space.sm, marginBottom: theme.space.md }}>
+      {periods.map((p) => {
+        const selected = p.key === value;
+        return (
+          <TouchableOpacity
+            key={p.key}
+            onPress={() => onChange(p.key)}
+            activeOpacity={0.8}
+            hitSlop={6}
+            accessibilityRole="button"
+            accessibilityState={{ selected }}
+            style={{
+              height: 32, paddingHorizontal: theme.space.md, borderRadius: 16, justifyContent: "center",
+              borderWidth: 1, borderColor: selected ? theme.primaryBorder : theme.border,
+              backgroundColor: selected ? theme.primarySoft : theme.bg,
+            }}
+          >
+            <Text style={{
+              fontFamily: selected ? theme.font.semibold : theme.font.medium,
+              fontSize: theme.size.sm, color: selected ? theme.primary : theme.textMuted,
+            }}>
+              {p.label}
+            </Text>
+          </TouchableOpacity>
+        );
+      })}
+    </View>
+  );
+}
+
+export default function VitalsTrend({
+  measurements = null,
+  statistics = null,
+  periods = null,
+  period = null,
+  onPeriodChange,
+  loading = false,
+  error = null,
+  onRetry,
+  retrying = false,
+}) {
   const [metric, setMetric] = useState("heartRate");
   const [showTable, setShowTable] = useState(false);
   const [width, setWidth] = useState(0);
 
   const m = METRICS[metric];
-  const points = useMemo(
-    () => measurements
-      .filter((x) => x[metric] != null)
-      .map((x) => ({ at: x.measuredAt, value: Math.round(x[metric]) }))
-      .reverse(),
-    [measurements, metric],
-  );
-  const enough = points.length >= 2;
-  const stats = enough ? summarize(points) : null;
+  const series = useMemo(() => {
+    if (statistics) return fromStatistics(statistics, metric);
+    if (measurements) return fromMeasurements(measurements, metric);
+    return null;
+  }, [measurements, statistics, metric]);
 
   return (
     <View style={{
@@ -191,7 +285,7 @@ export default function VitalsTrend({ measurements = [] }) {
           })}
         </View>
 
-        {enough && (
+        {series && (
           <TouchableOpacity
             onPress={() => setShowTable((v) => !v)}
             activeOpacity={0.8}
@@ -215,7 +309,28 @@ export default function VitalsTrend({ measurements = [] }) {
         )}
       </View>
 
-      {!enough ? (
+      {periods && onPeriodChange && <PeriodChips periods={periods} value={period} onChange={onPeriodChange} />}
+
+      {loading ? (
+        <ActivityIndicator color={theme.primary} style={{ paddingVertical: theme.space.xl }} />
+      ) : error && !series ? (
+        <View>
+          <ErrorBox message={error.message} />
+          <TouchableOpacity
+            onPress={onRetry}
+            disabled={retrying}
+            activeOpacity={0.7}
+            hitSlop={8}
+            accessibilityRole="button"
+            accessibilityState={{ busy: retrying, disabled: retrying }}
+            style={{ alignSelf: "center", paddingVertical: theme.space.xs }}
+          >
+            <Text style={{ fontFamily: theme.font.semibold, fontSize: theme.size.sm, color: theme.primary }}>
+              {retrying ? "Retrying…" : "Try again"}
+            </Text>
+          </TouchableOpacity>
+        </View>
+      ) : !series ? (
         <Text style={{ ...muted, fontSize: theme.size.sm, textAlign: "center", paddingVertical: theme.space.xl }}>
           Not enough readings yet.
         </Text>
@@ -223,9 +338,9 @@ export default function VitalsTrend({ measurements = [] }) {
         <>
           {showTable ? (
             <ScrollView nestedScrollEnabled style={{ maxHeight: TABLE_MAX_H }}>
-              {points.slice().reverse().map((p, i) => (
+              {series.points.slice().reverse().map((p, i) => (
                 <View
-                  key={`${p.at}-${i}`}
+                  key={p.at}
                   style={{
                     flexDirection: "row", paddingVertical: theme.space.sm,
                     borderTopWidth: i ? 1 : 0, borderTopColor: theme.border,
@@ -240,7 +355,7 @@ export default function VitalsTrend({ measurements = [] }) {
             </ScrollView>
           ) : (
             <View onLayout={(e) => setWidth(e.nativeEvent.layout.width)}>
-              {width > 0 && <Chart points={points} metric={metric} width={width} />}
+              {width > 0 && <Chart series={series} metric={metric} width={width} />}
             </View>
           )}
 
@@ -248,9 +363,9 @@ export default function VitalsTrend({ measurements = [] }) {
             flexDirection: "row", borderTopWidth: 1, borderTopColor: theme.border,
             marginHorizontal: -theme.space.lg, marginTop: theme.space.md,
           }}>
-            <Stat label="Min" value={stats.min} unit={m.unit} />
-            <Stat label="Average" value={stats.avg} unit={m.unit} divider />
-            <Stat label="Max" value={stats.max} unit={m.unit} divider />
+            <Stat label="Min" value={series.summary.min} unit={m.unit} />
+            <Stat label="Average" value={series.summary.avg} unit={m.unit} divider />
+            <Stat label="Max" value={series.summary.max} unit={m.unit} divider />
           </View>
         </>
       )}

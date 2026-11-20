@@ -13,7 +13,9 @@ const MOCKS = {
   MOCK_BRACELET_03: { id: -3, lastSeenAgoMs: null },
 };
 
-const MOCK_ACTIVITY = { walking: "walking", sitting: "still", lying: "lie_getup_transition", fallen: "fall" };
+const STATS_BUCKET_MS = 10000;
+
+const MOCK_ACTIVITY ={ walking: "walking", sitting: "still", lying: "lie_getup_transition", fallen: "fall" };
 
 const wait = () => new Promise((resolve) => setTimeout(resolve, MOCK_DELAY_MS));
 
@@ -81,6 +83,57 @@ export const getMockLatestAnalysis = async (deviceId) => {
     activity: MOCK_ACTIVITY[MOCK_WEARER.posture],
     fallDetected: MOCK_WEARER.posture === "fallen",
     analyzedAt: new Date(seen).toISOString(),
+  };
+};
+
+function mean(values) {
+  return values.reduce((sum, v) => sum + v, 0) / values.length;
+}
+
+function summary(values) {
+  if (!values.length) return { min: null, average: null, max: null, samples: 0 };
+  return { min: Math.min(...values), average: mean(values), max: Math.max(...values), samples: values.length };
+}
+
+export const getMockStatistics = async (deviceId, { minutes }) => {
+  await wait();
+  const mock = MOCKS[deviceId];
+  const seen = lastSeenMs(mock);
+  const to = Date.now();
+  const from = to - minutes * 60 * 1000;
+  const points = [];
+  const heartRates = [];
+  const spo2s = [];
+
+  if (seen != null) {
+    for (let start = Math.ceil(from / STATS_BUCKET_MS) * STATS_BUCKET_MS; start < to; start += STATS_BUCKET_MS) {
+      const bucket = [];
+      for (let at = start; at < start + STATS_BUCKET_MS && at <= seen; at += SAMPLE_INTERVAL_MS) bucket.push(sample(mock, at));
+      if (!bucket.length) continue;
+
+      const hr = bucket.map((s) => s.heartRate);
+      const spo2 = bucket.map((s) => s.spo2).filter((v) => v != null);
+      heartRates.push(...hr);
+      spo2s.push(...spo2);
+      points.push({
+        start: new Date(start).toISOString(),
+        end: new Date(start + STATS_BUCKET_MS).toISOString(),
+        heartRateAverage: mean(hr),
+        spo2Average: spo2.length ? mean(spo2) : null,
+        heartRateSamples: hr.length,
+        spo2Samples: spo2.length,
+      });
+    }
+  }
+
+  return {
+    deviceId,
+    from: new Date(from).toISOString(),
+    to: new Date(to).toISOString(),
+    bucketSeconds: STATS_BUCKET_MS / 1000,
+    heartRate: summary(heartRates),
+    spo2: summary(spo2s),
+    points,
   };
 };
 

@@ -8,7 +8,7 @@ import RetryBox from "@/components/RetryBox";
 import VitalRing from "@/components/VitalRing";
 import VitalsTrend from "@/components/VitalsTrend";
 import { useDeviceEvents } from "@/hooks/useDeviceEvents";
-import { useDevice, useLatestAnalysis, useLatestMeasurement, useMeasurements } from "@/hooks/useDevices";
+import { useDevice, useDeviceStatistics, useLatestAnalysis, useLatestMeasurement, useMeasurements } from "@/hooks/useDevices";
 import { MOCK_WEARER } from "@/mocks/wearer";
 import useAuthStore from "@/store/AuthStore";
 import { formatLastSeen } from "@/utils/formatLastSeen";
@@ -16,6 +16,13 @@ import { postureFromAnalysis } from "@/utils/postureFromAnalysis";
 import { theme } from "@/theme/theme";
 
 const TREND_LIMIT = 120;
+const LIVE_PERIOD = "live";
+const TREND_PERIODS = [
+  { key: LIVE_PERIOD, label: "Live" },
+  { key: 10, label: "10 min" },
+  { key: 30, label: "30 min" },
+  { key: 60, label: "1 h" },
+];
 const DEFAULT_POSTURE = "sitting";
 const STEPS_GOAL = 6000;
 const STEPS_RING = 108;
@@ -157,19 +164,26 @@ function LatestReading({ query, analysis, measurements = [], online, active }) {
   );
 }
 
-function Trends({ query }) {
-  const { data, isLoading, error, refetch, isFetching } = query;
+function Trends({ deviceId, history, live }) {
+  const [period, setPeriod] = useState(LIVE_PERIOD);
+  const isLive = period === LIVE_PERIOD;
+  const statistics = useDeviceStatistics(deviceId, { minutes: isLive ? null : period, live, enabled: !isLive });
+  const query = isLive ? history : statistics;
 
   return (
     <>
       <SectionHeader title="Trends" />
-      {isLoading ? (
-        <ActivityIndicator color={theme.primary} />
-      ) : error ? (
-        <RetryBox message={error.message} onRetry={() => refetch()} busy={isFetching} />
-      ) : (
-        <VitalsTrend measurements={data ?? []} />
-      )}
+      <VitalsTrend
+        measurements={isLive ? history.data ?? [] : null}
+        statistics={isLive ? null : statistics.data}
+        periods={TREND_PERIODS}
+        period={period}
+        onPeriodChange={setPeriod}
+        loading={query.isLoading}
+        error={query.error}
+        onRetry={() => query.refetch()}
+        retrying={query.isFetching}
+      />
     </>
   );
 }
@@ -266,7 +280,7 @@ export default function DeviceDetails() {
       ) : (
         <>
           <LatestReading query={latest} analysis={analysis.data} measurements={history.data ?? []} online={online} active={live} />
-          <Trends query={history} />
+          <Trends deviceId={deviceId} history={history} live={live} />
         </>
       )}
     </ScrollView>

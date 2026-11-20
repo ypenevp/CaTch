@@ -1,5 +1,5 @@
 import { useEffect } from "react";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useRealtimeConnected } from "@/hooks/useRealtimeConnected";
 import { isMockDevice } from "@/mocks/devices";
 import {
@@ -11,12 +11,14 @@ import {
   getMeasurements,
   getMyDevices,
   getPairing,
+  getStatistics,
 } from "@/services/devices";
 import useAuthStore from "@/store/AuthStore";
 
 const LIVE_REFETCH_MS = 15000;
 const DEVICE_LIVE_MS = 5000;
 const PAIRING_POLL_MS = 2500;
+const STATISTICS_REFRESH_MS = 10000;
 
 export const deviceKeys = {
   all: ["devices"],
@@ -26,6 +28,7 @@ export const deviceKeys = {
   measurementLists: (deviceId) => [...deviceKeys.detail(deviceId), "measurements"],
   measurements: (deviceId, limit) => [...deviceKeys.measurementLists(deviceId), limit],
   latestAnalysis: (deviceId) => [...deviceKeys.detail(deviceId), "analysis", "latest"],
+  statistics: (deviceId, minutes) => [...deviceKeys.detail(deviceId), "statistics", minutes],
   pairing: (pairingId) => [...deviceKeys.all, "pairing", pairingId],
 };
 
@@ -93,6 +96,16 @@ export function useLatestAnalysis(deviceId, { live = false } = {}) {
     queryFn: ({ signal }) => nullWhenNotFound(() => getLatestAnalysis(deviceId, { signal })),
     enabled: !!deviceId,
     refetchInterval: poll ? LIVE_REFETCH_MS : false,
+  });
+}
+
+export function useDeviceStatistics(deviceId, { minutes, live = false, enabled = true } = {}) {
+  return useQuery({
+    queryKey: deviceKeys.statistics(deviceId, minutes),
+    queryFn: ({ signal }) => getStatistics(deviceId, { minutes, signal }),
+    enabled: enabled && !!deviceId && !!minutes,
+    refetchInterval: live ? STATISTICS_REFRESH_MS : false,
+    placeholderData: keepPreviousData,
   });
 }
 
