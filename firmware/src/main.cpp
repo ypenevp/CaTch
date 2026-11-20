@@ -5,10 +5,13 @@
 #include <config.h>
 
 #include <MPU6050.h>
+#include <StepCounter.h>
 #include <Buttons.h>
 #include <Buzzer.h>
+#include <Display.h>
 
 #include <WiFi.h>
+#include <esp_system.h>
 #include "net/DeviceStorage.h"
 #include "net/BleProvisioning.h"
 #include "net/Claim.h"
@@ -43,9 +46,38 @@ static void enterRunningMode(const DeviceConfig &config) {
     Serial.println("Running mode: WiFi + MQTT");
 }
 
-// Handles CONNECT: Wi-Fi -> claim against the backend -> save to NVS.
+// A pairing request confirmed by the backend, waiting for the answer on the screen.
+struct PendingPairing {
+    bool active = false;
+    DeviceConfig config;
+    String pairingToken;
+    uint32_t startedAt = 0;
+};
+static PendingPairing pendingPairing;
+
+enum class PairingAnswer { None, Accept, Reject };
+static PairingAnswer pairingAnswer = PairingAnswer::None;
+
+// Random id of this power-on, sent with the step counter (see MqttClient.h).
+static uint32_t bootId = 0;
+
+// Last sensor sample, kept for the SENSOR screen.
+static MotionData lastMotion{};
+static bool haveLastMotion = false;
+
+// Removes the question from the screen and forgets the request.
+static void closePairingPrompt() {
+    pendingPairing = PendingPairing();
+    pairingAnswer = PairingAnswer::None;
+    displayHidePairingPrompt();
+}
+
+// Handles CONNECT: Wi-Fi -> ask the backend about the pairing request ->
+// show the question on the screen. The claim itself happens in
+// completePairing() once the user answers with SELECT.
 static void handleProvisionRequest(const ProvisionRequest &req) {
     bleSetState(ProvState::WifiConnecting);
+    displayShowStatus("Connecting to WiFi", "Please wait...");
 
     const WifiResult wifi = connectWifi(req.ssid, req.password, WIFI_CONNECT_TIMEOUT_MS);
     if (wifi != WifiResult::Ok) {
@@ -57,12 +89,48 @@ static void handleProvisionRequest(const ProvisionRequest &req) {
     }
 
     bleSetState(ProvState::Claiming);
-    DeviceConfig config;
-    config.ssid = req.ssid;
-    config.wifiPassword = req.password;
+    displayShowStatus("Checking request", "Please wait...");
+
+    PairingRequestInfo info;
+    String error;
+    const ClaimResult result = fetchPairingRequest(req.pairingToken, info, error);
+    if (result != ClaimResult::Ok) {
+        WiFi.disconnect(true);
+        bleReportError(result == ClaimResult::Rejected ? "CLAIM_REJECTED" : "CLAIM_NETWORK",
+                       error.c_str());
+        return;
+    }
+
+    // The phone left (disconnect / CANCEL) while the request was being checked
+    if (bleState() != ProvState::Claiming) {
+        WiFi.disconnect(true);
+        return;
+    }
+
+    pendingPairing.active = true;
+    pendingPairing.config.ssid = req.ssid;
+    pendingPairing.config.wifiPassword = req.password;
+    pendingPairing.pairingToken = req.pairingToken;
+    pendingPairing.startedAt = millis();
+    pairingAnswer = PairingAnswer::None;
+
+    displayShowPairingPrompt(info.requestedBy, info.requestedByEmail);
+    bleSetState(ProvState::Claiming, "DEVICE_CONFIRMATION");
+    beep(2400, 150);
+    Serial.println("Pairing: request received from the backend, waiting for SELECT / NEXT");
+}
+
+// SELECT on the pairing question: claim against the backend -> save to NVS.
+static void completePairing() {
+    DeviceConfig config = pendingPairing.config;
+    const String pairingToken = pendingPairing.pairingToken;
+    closePairingPrompt();
+
+    bleSetState(ProvState::Claiming);
+    displayShowStatus("Registering device", "Please wait...");
 
     String error;
-    const ClaimResult result = claimDevice(req.pairingToken, config, error);
+    const ClaimResult result = claimDevice(pairingToken, config, error);
     if (result != ClaimResult::Ok) {
         WiFi.disconnect(true);
         bleReportError(result == ClaimResult::Rejected ? "CLAIM_REJECTED" : "CLAIM_NETWORK",
@@ -81,12 +149,61 @@ static void handleProvisionRequest(const ProvisionRequest &req) {
     beep(2800, 120);
 }
 
+// NEXT on the pairing question: tell the backend and go back to CONFIRMED.
+static void rejectPairing() {
+    const String pairingToken = pendingPairing.pairingToken;
+    closePairingPrompt();
+
+    displayShowStatus("Pairing rejected", "Please wait...");
+    if (!rejectPairingRequest(pairingToken)) {
+        Serial.println("Pairing: could not report the rejection to the backend");
+    }
+    WiFi.disconnect(true);
+    bleReportError("PAIRING_REJECTED", "Pairing was rejected on the device");
+    Serial.println("Pairing: rejected by NEXT");
+}
+
+// Answer, timeout or a vanished phone while the question is on the screen.
+static void updatePairingPrompt() {
+    if (!pendingPairing.active) return;
+
+    // Not loop()'s `now`: it is older than startedAt right after the blocking
+    // Wi-Fi / HTTP steps in handleProvisionRequest().
+    const uint32_t now = millis();
+
+    // The phone disconnected or sent CANCEL
+    if (bleState() != ProvState::Claiming) {
+        closePairingPrompt();
+        WiFi.disconnect(true);
+        Serial.println("Pairing: cancelled, phone is gone");
+        return;
+    }
+
+    if (pairingAnswer == PairingAnswer::Accept) {
+        completePairing();
+    } else if (pairingAnswer == PairingAnswer::Reject) {
+        rejectPairing();
+    } else if (static_cast<uint32_t>(now - pendingPairing.startedAt) >= PAIR_CONFIRM_TIMEOUT_MS) {
+        closePairingPrompt();
+        WiFi.disconnect(true);
+        bleReportError("PAIRING_TIMEOUT", "No answer on the device");
+        Serial.println("Pairing: no answer, timed out");
+    }
+}
+
 void onNext(bool pressed) {
     Serial.print("Next ");
     Serial.println(pressed ? "pressed" : "released");
 
-    if (pressed) {
-        beep(2000, 60);
+    if (!pressed) return;
+    beep(2000, 60);
+
+    if (pendingPairing.active) {
+        pairingAnswer = PairingAnswer::Reject;  // "Pair this device?" -> no
+    } else if (mode == Mode::Provisioning && bleState() == ProvState::WaitingConfirmation) {
+        bleRejectPressed();
+    } else {
+        displayNext();
     }
 }
 
@@ -94,9 +211,15 @@ void onSelect(bool pressed) {
     Serial.print("Select ");
     Serial.println(pressed ? "pressed" : "released");
 
-    if (pressed) {
-        beep(2800, 120);
-        bleConfirmPressed();  // confirms the BLE pairing if it is waiting
+    if (!pressed) return;
+    beep(2800, 120);
+
+    if (pendingPairing.active) {
+        pairingAnswer = PairingAnswer::Accept;  // "Pair this device?" -> yes
+    } else if (mode == Mode::Provisioning && bleState() == ProvState::WaitingConfirmation) {
+        bleConfirmPressed();  // confirms the BLE connection
+    } else {
+        displaySelect();
     }
 }
 
@@ -104,11 +227,14 @@ void setup() {
     Serial.begin(SERIAL_BAUD_RATE);
     delay(1000);
 
+    bootId = esp_random();
+
     beginButtons(NEXT_PIN, SELECT_PIN);
     beginBuzzer(BUZZER_PIN);
     beginMPU6050(SDA_PIN, SCL_PIN);
+    beginDisplay(SDA_PIN, SCL_PIN);  // shares the I2C bus started by beginMPU6050()
 
-    Serial.println("MPU6050, buttons and buzzer starting...");
+    Serial.println("MPU6050, display, buttons and buzzer starting...");
 
     // Factory reset: hold SELECT while powering on
     if (digitalRead(SELECT_PIN) == LOW) {
@@ -142,25 +268,32 @@ void loop() {
     if (mode == Mode::Provisioning) {
         bleUpdate(now);
 
-        // No display: beep while waiting for SELECT
+        // Beep while a question is waiting for SELECT / NEXT
         static uint32_t lastPrompt = 0;
-        if (bleState() == ProvState::WaitingConfirmation &&
+        if ((bleState() == ProvState::WaitingConfirmation || pendingPairing.active) &&
             static_cast<uint32_t>(now - lastPrompt) >= 3000) {
             beep(2400, 150);
             lastPrompt = now;
         }
 
         if (bleTakeCancel()) {
+            closePairingPrompt();
             WiFi.disconnect(true);
         }
 
         ProvisionRequest request;
-        if (bleTakeConnectRequest(request)) {
+        if (bleTakeConnectRequest(request) && !pendingPairing.active) {
             handleProvisionRequest(request);
         }
+
+        updatePairingPrompt();
     } else {
         mqttUpdate(now);
     }
+
+    updateDisplay(now, mode == Mode::Running, bleState(),
+                WiFi.status() == WL_CONNECTED, mqttIsConnected(),
+                mpuInitialized, haveLastMotion ? &lastMotion : nullptr, stepCount());
 
     // MPU6050 initialization. Retried without delay() so buttons and BLE keep
     // running even when the sensor is missing.
@@ -185,14 +318,13 @@ void loop() {
         Serial.println("MPU6050 ready (I2C 0x68)");
     }
 
-    // Interval between measurements
-    if (static_cast<uint32_t>(
-            now - lastMotionPrint
-        ) < MOTION_INTERVAL_MS) {
+    // The sensor is read at 50 Hz for the step counter; the rest below
+    // (sudden motion, MQTT, serial) still runs every MOTION_INTERVAL_MS.
+    static uint32_t lastSensorRead = 0;
+    if (static_cast<uint32_t>(now - lastSensorRead) < STEP_SAMPLE_INTERVAL_MS) {
         return;
     }
-
-    lastMotionPrint = now;
+    lastSensorRead = now;
 
     MotionData motion{};
 
@@ -202,9 +334,14 @@ void loop() {
 
         mpuInitialized = false;
         havePrevious = false;
+        haveLastMotion = false;
+        stepCounterResetSignal();
 
         return;
     }
+
+    lastMotion = motion;
+    haveLastMotion = true;
 
     // Convert to physical units
     const float ax = motion.ax / ACCEL_SCALE;
@@ -214,6 +351,17 @@ void loop() {
     const float gx = motion.gx / GYRO_SCALE;
     const float gy = motion.gy / GYRO_SCALE;
     const float gz = motion.gz / GYRO_SCALE;
+
+    stepCounterUpdate(ax, ay, az, now);
+
+    // Interval between measurements
+    if (static_cast<uint32_t>(
+            now - lastMotionPrint
+        ) < MOTION_INTERVAL_MS) {
+        return;
+    }
+
+    lastMotionPrint = now;
 
     if (havePrevious) {
         // Change of the acceleration vector (g)
@@ -277,7 +425,7 @@ void loop() {
     // Publish over MQTT (running mode only)
     if (mode == Mode::Running &&
         static_cast<uint32_t>(now - lastMqttPublish) >= MQTT_PUBLISH_INTERVAL_MS) {
-        if (mqttPublishMeasurement(ax, ay, az, gx, gy, gz)) {
+        if (mqttPublishMeasurement(ax, ay, az, gx, gy, gz, stepCount(), bootId)) {
             lastMqttPublish = now;
         }
     }
@@ -289,6 +437,9 @@ void loop() {
     Serial.print(ay, 3);
     Serial.print(", ");
     Serial.print(az, 3);
+
+    Serial.print(" | Steps: ");
+    Serial.print(stepCount());
 
     Serial.print(" | Gyro [deg/s]: ");
     Serial.print(gx, 2);

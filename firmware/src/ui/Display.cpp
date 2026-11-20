@@ -20,6 +20,26 @@ bool menuOpen = true;
 bool soundEnabled = true;
 uint32_t lastRefresh = 0;
 
+constexpr size_t PROMPT_LINE_CHARS = 20;  // fits inside the frame at text size 1
+bool pairingPromptVisible = false;
+char pairingUser[PROMPT_LINE_CHARS + 1] = "";
+char pairingEmail[PROMPT_LINE_CHARS + 1] = "";
+
+// The built-in font is ASCII only: other bytes become '?', long text ends in "..".
+void fitLine(const String &text, char *out) {
+    const size_t len = text.length();
+    size_t i = 0;
+    for (; i < len && i < PROMPT_LINE_CHARS; ++i) {
+        const char c = text[i];
+        out[i] = (c >= 32 && c <= 126) ? c : '?';
+    }
+    out[i] = '\0';
+    if (len > PROMPT_LINE_CHARS) {
+        out[PROMPT_LINE_CHARS - 2] = '.';
+        out[PROMPT_LINE_CHARS - 1] = '.';
+    }
+}
+
 const char *shortBleState(ProvState state) {
     switch (state) {
         case ProvState::WaitingConfirmation: return "REQUEST";
@@ -56,19 +76,21 @@ void centered(const char *text, uint8_t size, int16_t y) {
     display.print(text);
 }
 
-void drawHome(bool running, bool wifi, bool mqtt, bool mpu) {
+void drawHome(bool running, bool wifi, bool mqtt, bool mpu, uint32_t steps) {
     header(running ? (wifi ? "ONLINE" : "OFFLINE") : "SETUP");
     if (!running) {
         centered("READY", 2, 19);
         centered("Waiting for BLE", 1, 40);
         footer("NEXT: MENU  SEL: MENU");
     } else {
-        display.setCursor(0, 17); display.print(F("WiFi"));
-        display.setCursor(76, 17); display.print(wifi ? F("CONNECTED") : F("WAITING"));
-        display.setCursor(0, 29); display.print(F("MQTT"));
-        display.setCursor(76, 29); display.print(mqtt ? F("CONNECTED") : F("OFFLINE"));
-        display.setCursor(0, 41); display.print(F("MPU6050"));
-        display.setCursor(76, 41); display.print(mpu ? F("READY") : F("SEARCHING"));
+        display.setCursor(0, 14); display.print(F("Steps"));
+        display.setCursor(76, 14); display.print(steps);
+        display.setCursor(0, 24); display.print(F("WiFi"));
+        display.setCursor(76, 24); display.print(wifi ? F("CONNECTED") : F("WAITING"));
+        display.setCursor(0, 34); display.print(F("MQTT"));
+        display.setCursor(76, 34); display.print(mqtt ? F("CONNECTED") : F("OFFLINE"));
+        display.setCursor(0, 44); display.print(F("MPU6050"));
+        display.setCursor(76, 44); display.print(mpu ? F("READY") : F("SEARCHING"));
         footer("NEXT: MENU  SEL: MENU");
     }
 }
@@ -144,6 +166,18 @@ void drawBleAlert() {
     centered("Confirm connection?", 1, 39);
     centered("SEL: ACCEPT  NEXT: DENY", 1, 53);
 }
+
+void drawPairingPrompt() {
+    display.setTextColor(SSD1306_WHITE);
+    display.drawRect(0, 0, 128, 64, SSD1306_WHITE);
+    centered("PAIRING REQUEST", 1, 4);
+    display.drawLine(0, 14, 127, 14, SSD1306_WHITE);
+    if (pairingUser[0] != '\0') centered(pairingUser, 1, 18);
+    if (pairingEmail[0] != '\0') centered(pairingEmail, 1, 28);
+    centered("Pair this device?", 1, 40);
+    display.drawLine(0, 50, 127, 50, SSD1306_WHITE);
+    centered("SEL: YES   NEXT: NO", 1, 53);
+}
 }
 
 void beginDisplay(uint8_t sdaPin, uint8_t sclPin) {
@@ -178,6 +212,33 @@ bool displayAvailable() { return available; }
 bool displaySoundEnabled() { return soundEnabled; }
 uint8_t displayAddress() { return oledAddress; }
 
+void displayShowPairingPrompt(const String &requestedBy, const String &email) {
+    fitLine(requestedBy, pairingUser);
+    fitLine(email, pairingEmail);
+    pairingPromptVisible = true;
+    if (!available) return;
+    display.clearDisplay();
+    drawPairingPrompt();
+    display.display();
+    lastRefresh = millis();
+}
+
+void displayHidePairingPrompt() {
+    pairingPromptVisible = false;
+}
+
+bool displayPairingPromptVisible() { return pairingPromptVisible; }
+
+void displayShowStatus(const char *title, const char *line) {
+    if (!available) return;
+    display.clearDisplay();
+    header("PAIRING");
+    centered(title, 1, 24);
+    centered(line, 1, 38);
+    display.display();
+    lastRefresh = millis();
+}
+
 void displayNext() {
     if (menuOpen) {
         selectedScreen = (selectedScreen + 1) % SCREEN_COUNT;
@@ -198,19 +259,21 @@ void displaySelect() {
 
 void updateDisplay(uint32_t now, bool running, ProvState ble,
                    bool wifiConnected, bool mqttConnected,
-                   bool mpuReady, const MotionData *motion) {
+                   bool mpuReady, const MotionData *motion, uint32_t steps) {
     if (!available || static_cast<uint32_t>(now - lastRefresh) < REFRESH_MS) return;
     lastRefresh = now;
     display.clearDisplay();
 
-    if (!running && ble == ProvState::WaitingConfirmation) {
+    if (pairingPromptVisible) {
+        drawPairingPrompt();
+    } else if (!running && ble == ProvState::WaitingConfirmation) {
         drawBleAlert();
     } else {
         if (menuOpen) {
             drawMenu();
         } else {
             switch (selectedScreen) {
-                case 0: drawHome(running, wifiConnected, mqttConnected, mpuReady); break;
+                case 0: drawHome(running, wifiConnected, mqttConnected, mpuReady, steps); break;
                 case 1: drawSensor(motion, mpuReady); break;
                 case 2: drawConnections(running, ble, wifiConnected, mqttConnected); break;
                 default: drawSettings(); break;

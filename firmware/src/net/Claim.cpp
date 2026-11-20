@@ -30,8 +30,10 @@ WifiResult connectWifi(const String &ssid, const String &password, uint32_t time
     return WifiResult::Ok;
 }
 
-ClaimResult claimDevice(const String &pairingToken, DeviceConfig &config, String &errorMessage) {
-    const String url = String(API_BASE_URL) + "/api/v1/device-claims/claim";
+// POSTs {deviceId, claimSecret, pairingToken} to /api/v1/device-claims/<action>.
+// Returns the HTTP status (<= 0 when the server is unreachable).
+static int postDeviceClaim(const char *action, const String &pairingToken, String &response) {
+    const String url = String(API_BASE_URL) + "/api/v1/device-claims/" + action;
 
     JsonDocument body;
     body["deviceId"] = DEVICE_ID;
@@ -57,8 +59,7 @@ ClaimResult claimDevice(const String &pairingToken, DeviceConfig &config, String
         began = http.begin(plainClient, url);
     }
     if (!began) {
-        errorMessage = "http begin failed";
-        return ClaimResult::NetworkError;
+        return 0;
     }
 
     Serial.print("Claim: POST ");
@@ -66,26 +67,69 @@ ClaimResult claimDevice(const String &pairingToken, DeviceConfig &config, String
 
     http.addHeader("Content-Type", "application/json");
     const int status = http.POST(payload);
-    const String response = http.getString();
+    response = http.getString();
     http.end();
 
-    // The response holds the MQTT credentials, so only the status is logged
+    // Responses may hold the MQTT credentials, so only the status is logged
     Serial.print("Claim: HTTP status ");
     Serial.println(status);
+    return status;
+}
 
+// Maps a non-2xx answer to a ClaimResult and fills errorMessage.
+static ClaimResult failureResult(int status, const String &response, const char *fallback,
+                                 String &errorMessage) {
     if (status <= 0) {
         errorMessage = "server unreachable";
         return ClaimResult::NetworkError;
     }
+    if (status >= 400 && status < 500) {
+        JsonDocument doc;
+        const bool parsed = deserializeJson(doc, response) == DeserializationError::Ok;
+        errorMessage = parsed ? String(doc["message"] | fallback) : String(fallback);
+        return ClaimResult::Rejected;
+    }
+    errorMessage = "server error " + String(status);
+    return ClaimResult::NetworkError;
+}
 
-    JsonDocument doc;
-    const bool parsed = deserializeJson(doc, response) == DeserializationError::Ok;
+ClaimResult fetchPairingRequest(const String &pairingToken, PairingRequestInfo &info,
+                                String &errorMessage) {
+    String response;
+    const int status = postDeviceClaim("pairing-request", pairingToken, response);
+
+    if (status >= 200 && status < 300) {
+        JsonDocument doc;
+        if (deserializeJson(doc, response) != DeserializationError::Ok) {
+            errorMessage = "invalid pairing request response";
+            return ClaimResult::NetworkError;
+        }
+        info.requestedBy = String(doc["requestedBy"] | "");
+        info.requestedByEmail = String(doc["requestedByEmail"] | "");
+        Serial.println("Claim: pairing request received from the backend");
+        return ClaimResult::Ok;
+    }
+
+    return failureResult(status, response, "pairing request rejected", errorMessage);
+}
+
+bool rejectPairingRequest(const String &pairingToken) {
+    String response;
+    const int status = postDeviceClaim("reject", pairingToken, response);
+    return status >= 200 && status < 300;
+}
+
+ClaimResult claimDevice(const String &pairingToken, DeviceConfig &config, String &errorMessage) {
+    String response;
+    const int status = postDeviceClaim("claim", pairingToken, response);
 
     // DeviceClaimController currently answers 200 OK; accept any 2xx so a
     // switch to 201 Created on the backend does not break provisioning.
-    if (status >= 200 && status < 300 && parsed) {
-        const char *user = doc["mqttUsername"] | "";
-        const char *pass = doc["mqttPassword"] | "";
+    if (status >= 200 && status < 300) {
+        JsonDocument doc;
+        const bool parsed = deserializeJson(doc, response) == DeserializationError::Ok;
+        const char *user = parsed ? (doc["mqttUsername"] | "") : "";
+        const char *pass = parsed ? (doc["mqttPassword"] | "") : "";
         if (strlen(user) == 0 || strlen(pass) == 0) {
             errorMessage = "missing mqtt credentials in response";
             return ClaimResult::NetworkError;
@@ -96,11 +140,5 @@ ClaimResult claimDevice(const String &pairingToken, DeviceConfig &config, String
         return ClaimResult::Ok;
     }
 
-    if (status >= 400 && status < 500) {
-        errorMessage = parsed ? String(doc["message"] | "claim rejected") : String("claim rejected");
-        return ClaimResult::Rejected;
-    }
-
-    errorMessage = "server error " + String(status);
-    return ClaimResult::NetworkError;
+    return failureResult(status, response, "claim rejected", errorMessage);
 }

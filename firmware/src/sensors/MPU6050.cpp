@@ -17,7 +17,10 @@ bool beginMPU6050(uint8_t sdaPin, uint8_t sclPin) {
 }
 
 bool initializeMPU6050() {
-    return writeRegister(0x6B, 0x00) && writeRegister(0x1C, 0x00) && writeRegister(0x1B, 0x00);
+    // 0x1A = 0x04: digital low-pass ~21 Hz, below the 25 Hz limit of the
+    // 50 Hz step counter sampling
+    return writeRegister(0x6B, 0x00) && writeRegister(0x1A, 0x04) &&
+           writeRegister(0x1C, 0x00) && writeRegister(0x1B, 0x00);
 }
 
 bool readMotion(MotionData &data) {

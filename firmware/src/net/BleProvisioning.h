@@ -35,7 +35,9 @@ bool bleTakeConnectRequest(ProvisionRequest &out);
 bool bleTakeCancel();
 
 // Notify STATUS. Reporting an error automatically returns to Confirmed.
-void bleSetState(ProvState state);
+// `awaiting` adds an optional "awaiting" field to STATUS, e.g. CLAIMING +
+// "DEVICE_CONFIRMATION" while the pairing question is on the screen.
+void bleSetState(ProvState state, const char *awaiting = nullptr);
 void bleReportError(const char *errorCode, const char *message = nullptr);
 
 #endif

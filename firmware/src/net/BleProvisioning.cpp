@@ -56,11 +56,13 @@ static const char *stateName(ProvState s) {
     }
 }
 
-static void publishStatus(const char *name, const char *error, const char *message) {
+static void publishStatus(const char *name, const char *error, const char *message,
+                          const char *awaiting = nullptr) {
     if (!statusChar) return;
     JsonDocument doc;
     doc["state"] = name;
     if (error) doc["error"] = error;
+    if (awaiting) doc["awaiting"] = awaiting;
     if (message) {
         String m = message;
         if (m.length() > 80) m = m.substring(0, 80);  // STATUS must stay ≤ 180 bytes
@@ -85,9 +87,9 @@ static void publishStatus(const char *name, const char *error, const char *messa
     Serial.println();
 }
 
-void bleSetState(ProvState s) {
+void bleSetState(ProvState s, const char *awaiting) {
     state = s;
-    publishStatus(stateName(s), nullptr, nullptr);
+    publishStatus(stateName(s), nullptr, nullptr, awaiting);
 }
 
 void bleReportError(const char *errorCode, const char *message) {

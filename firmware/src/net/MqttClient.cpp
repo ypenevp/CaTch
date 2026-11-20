@@ -46,7 +46,8 @@ void mqttUpdate(uint32_t now) {
 
 bool mqttIsConnected() { return client.connected(); }
 
-bool mqttPublishMeasurement(float ax, float ay, float az, float gx, float gy, float gz) {
+bool mqttPublishMeasurement(float ax, float ay, float az, float gx, float gy, float gz,
+                            uint32_t steps, uint32_t bootId) {
     if (!client.connected()) return false;
 
     char buf[256];
@@ -55,13 +56,17 @@ bool mqttPublishMeasurement(float ax, float ay, float az, float gx, float gy, fl
     if (nowSec > 1700000000) {  // clock synced via NTP
         n = snprintf(buf, sizeof(buf),
                      "{\"ts\":%lld,\"accelX\":%.3f,\"accelY\":%.3f,\"accelZ\":%.3f,"
-                     "\"gyroX\":%.2f,\"gyroY\":%.2f,\"gyroZ\":%.2f}",
-                     static_cast<long long>(nowSec) * 1000LL, ax, ay, az, gx, gy, gz);
+                     "\"gyroX\":%.2f,\"gyroY\":%.2f,\"gyroZ\":%.2f,"
+                     "\"steps\":%lu,\"bootId\":%lu}",
+                     static_cast<long long>(nowSec) * 1000LL, ax, ay, az, gx, gy, gz,
+                     static_cast<unsigned long>(steps), static_cast<unsigned long>(bootId));
     } else {  // no ts → the server uses the receive time
         n = snprintf(buf, sizeof(buf),
                      "{\"accelX\":%.3f,\"accelY\":%.3f,\"accelZ\":%.3f,"
-                     "\"gyroX\":%.2f,\"gyroY\":%.2f,\"gyroZ\":%.2f}",
-                     ax, ay, az, gx, gy, gz);
+                     "\"gyroX\":%.2f,\"gyroY\":%.2f,\"gyroZ\":%.2f,"
+                     "\"steps\":%lu,\"bootId\":%lu}",
+                     ax, ay, az, gx, gy, gz,
+                     static_cast<unsigned long>(steps), static_cast<unsigned long>(bootId));
     }
-    return n > 0 && client.publish(topic.c_str(), buf);
+    return n > 0 && n < static_cast<int>(sizeof(buf)) && client.publish(topic.c_str(), buf);
 }
