@@ -4,6 +4,7 @@
 #include "config.h"
 
 #define MPU_REG_PWR_MGMT_1 0x6B
+#define MPU_REG_CONFIG 0x1A
 #define MPU_REG_ACCEL_CONFIG 0x1C
 #define MPU_REG_GYRO_CONFIG 0x1B
 #define MPU_REG_ACCEL_XOUT_H 0x3B
@@ -17,8 +18,10 @@ static bool writeRegister(uint8_t reg, uint8_t value) {
 }
 
 bool mpuInitialize() {
-    // Wake up, +-2 g, +-250 deg/s
+    // Wake up, digital low-pass ~21 Hz (below the 25 Hz limit of the 50 Hz
+    // step counter sampling), +-2 g, +-250 deg/s
     return writeRegister(MPU_REG_PWR_MGMT_1, 0x00) &&
+           writeRegister(MPU_REG_CONFIG, 0x04) &&
            writeRegister(MPU_REG_ACCEL_CONFIG, 0x00) &&
            writeRegister(MPU_REG_GYRO_CONFIG, 0x00);
 }

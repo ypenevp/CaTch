@@ -114,10 +114,13 @@ static void drawHome(const DisplayData &data) {
         drawCentered("Open the CaTch app", 1, 28);
         drawCentered("to add this device", 1, 38);
     } else {
+        char steps[12];
+        snprintf(steps, sizeof(steps), "%lu", (unsigned long)data.steps);
         drawHeader(data.mqttConnected ? "ONLINE" : "OFFLINE");
-        drawRow(16, "Wi-Fi", data.wifiConnected ? "CONNECTED" : "WAITING");
-        drawRow(28, "Server", data.mqttConnected ? "CONNECTED" : "WAITING");
-        drawRow(40, "Sensor", data.motionReady ? "READY" : "SEARCHING");
+        drawRow(14, "Steps", steps);
+        drawRow(24, "Wi-Fi", data.wifiConnected ? "CONNECTED" : "WAITING");
+        drawRow(34, "Server", data.mqttConnected ? "CONNECTED" : "WAITING");
+        drawRow(44, "Sensor", data.motionReady ? "READY" : "SEARCHING");
     }
     drawFooter("SEL/NEXT: menu");
 }

@@ -55,6 +55,18 @@
 #define ACCEL_CHANGE_THRESHOLD 0.85f    // g between two samples
 #define GYRO_CHANGE_THRESHOLD 100.0f    // deg/s between two samples
 
+// ==================== STEP COUNTER ====================
+
+#define STEP_SAMPLE_INTERVAL_MS 20     // 50 Hz sensor reads for the step counter
+#define STEP_MIN_THRESHOLD_G 0.10f     // smallest peak (g above gravity) that is a step
+#define STEP_ADAPTIVE_RATIO 0.5f       // threshold = this * average step peak
+#define STEP_MAX_PEAK_G 1.5f           // bigger peaks are hits/shakes, not steps
+#define STEP_MIN_INTERVAL_MS 250       // max ~4 steps/s (running)
+#define STEP_MAX_INTERVAL_MS 2000      // a longer pause ends the walk
+#define STEP_CONFIRM_COUNT 4           // regular steps in a row before counting
+#define STEP_GRAVITY_ALPHA 0.02f       // gravity estimate, ~1 s at 50 Hz
+#define STEP_SMOOTH_ALPHA 0.35f        // noise filter on the movement signal
+
 // ==================== VITALS (TEMPORARY) ====================
 
 // Sent in every MQTT message until the pulse / SpO2 sensor is installed

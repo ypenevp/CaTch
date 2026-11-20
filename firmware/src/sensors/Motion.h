@@ -10,9 +10,10 @@ struct MotionSample {
     uint32_t timestampMs;
 };
 
-// Call on every loop(). Reads the MPU6050 every MOTION_INTERVAL_MS,
-// retries the init if the sensor is missing and logs sudden motion.
-// Returns true when a new sample was read.
+// Call on every loop(). Reads the MPU6050 every STEP_SAMPLE_INTERVAL_MS and
+// feeds the step counter, retries the init if the sensor is missing and logs
+// sudden motion. Returns true when a new sample is available (every
+// MOTION_INTERVAL_MS).
 bool motionUpdate(uint32_t now);
 
 bool motionIsReady();

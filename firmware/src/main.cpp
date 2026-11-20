@@ -8,6 +8,7 @@
 #include "net/DeviceStorage.h"
 #include "net/NetworkTask.h"
 #include "sensors/Motion.h"
+#include "sensors/StepCounter.h"
 #include "sensors/Vitals.h"
 #include "ui/Buttons.h"
 #include "ui/Buzzer.h"
@@ -226,6 +227,7 @@ static void updateScreen(uint32_t now) {
     data.motionReady = motionIsReady();
     data.hasMotion = motionGetLatest(data.motion);
     vitalsRead(data.vitals);
+    data.steps = stepCount();
     data.soundEnabled = buzzerIsEnabled();
     displayUpdate(now, data);
 }

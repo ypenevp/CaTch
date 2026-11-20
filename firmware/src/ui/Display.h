@@ -18,6 +18,7 @@ struct DisplayData {
     bool hasMotion;
     MotionSample motion;
     VitalsSample vitals;
+    uint32_t steps;                  // since power-on
     bool soundEnabled;
 };
 

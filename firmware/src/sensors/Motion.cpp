@@ -4,11 +4,13 @@
 #include "config.h"
 #include "core/Log.h"
 #include "sensors/MPU6050.h"
+#include "sensors/StepCounter.h"
 
 static bool sensorReady = false;
 static bool initAttempted = false;
 static uint32_t lastInitAttempt = 0;
 static uint32_t lastRead = 0;
+static uint32_t lastSample = 0;
 
 static bool haveSample = false;
 static MotionSample latest;
@@ -52,7 +54,9 @@ bool motionUpdate(uint32_t now) {
         return false;
     }
 
-    if ((uint32_t)(now - lastRead) < MOTION_INTERVAL_MS) {
+    // The sensor is read at 50 Hz for the step counter; a new sample for the
+    // rest of the firmware (MQTT, display, sudden motion) every MOTION_INTERVAL_MS.
+    if ((uint32_t)(now - lastRead) < STEP_SAMPLE_INTERVAL_MS) {
         return false;
     }
     lastRead = now;
@@ -62,8 +66,16 @@ bool motionUpdate(uint32_t now) {
         logPrintf("MOTION", "MPU6050 read error, reinitializing");
         sensorReady = false;
         haveSample = false;
+        stepCounterResetSignal();
         return false;
     }
+
+    stepCounterUpdate(raw.ax / ACCEL_SCALE, raw.ay / ACCEL_SCALE, raw.az / ACCEL_SCALE, now);
+
+    if (haveSample && (uint32_t)(now - lastSample) < MOTION_INTERVAL_MS) {
+        return false;
+    }
+    lastSample = now;
 
     MotionSample sample;
     sample.ax = raw.ax / ACCEL_SCALE;
