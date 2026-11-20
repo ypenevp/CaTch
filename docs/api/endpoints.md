@@ -34,6 +34,7 @@
 | **Get Device By Id** | `GET` | `/api/v1/devices/{deviceId}` | `Authenticated` | Yes | `200` | **Path param:** `deviceId` |
 | **Get Latest Measurement** | `GET` | `/api/v1/devices/{deviceId}/measurements/latest` | `Authenticated` | Yes | `200` | **Path param:** `deviceId` |
 | **Get Device Measurements** | `GET` | `/api/v1/devices/{deviceId}/measurements` | `Authenticated` | Yes | `200` | **Path param:** `deviceId`, **Query param:** `limit` (default: `120`) |
+| **Get Device Statistics** | `GET` | `/api/v1/devices/{deviceId}/statistics` | `Authenticated` | Yes | `200` | **Path param:** `deviceId`, **Query param:** `minutes` (default: `10`, max: `60`) |
 
 ## Relative Module 
 
@@ -54,3 +55,26 @@
 | **Get Linked User's Device By Id** | `GET` | `/api/v1/relatives/users/{userId}/devices/{deviceId}` | `RELATIVE` | Yes | `200` | **Path params:** `userId`, `deviceId` |
 | **Get Linked User's Latest Measurement** | `GET` | `/api/v1/relatives/users/{userId}/devices/{deviceId}/measurements/latest` | `RELATIVE` | Yes | `200` | **Path params:** `userId`, `deviceId` |
 | **Get Linked User's Device Measurements** | `GET` | `/api/v1/relatives/users/{userId}/devices/{deviceId}/measurements` | `RELATIVE` | Yes | `200` | **Path params:** `userId`, `deviceId`, **Query param:** `limit` (default: `120`) |
+
+## AI Analysis Module 
+
+- Base URL: `/api/v1/devices/{deviceId}/analyses`
+
+| Description | Method | Full URL | Required Role | Bearer JWT Required? | Expected Status | Parameters |
+| :--- | :--- | :--- | :--- | :--- | :--- | :--- |
+| **Get Device Analyses** | `GET` | `/api/v1/devices/{deviceId}/analyses` | `Authenticated` | Yes | `200` | **Path param:** `deviceId`, **Query params:** `fallsOnly` (default: `false`), `page`, `size`, `sort` |
+| **Get Latest Analysis** | `GET` | `/api/v1/devices/{deviceId}/analyses/latest` | `Authenticated` | Yes | `200` | **Path param:** `deviceId` |
+
+## Real-time (WebSocket / STOMP)
+
+- Endpoint: `ws://<host>:<port>/ws` (`wss://` in production), plain WebSocket, no SockJS.
+- Authentication: STOMP `CONNECT` header `Authorization: Bearer <accessToken>`. An invalid or missing token gets an `ERROR` frame with `message: Authentication required`.
+- Heartbeat: 10 s / 10 s. Clients only subscribe; `SEND` frames are rejected.
+
+| Description | Destination | Who can subscribe | Message |
+| :--- | :--- | :--- | :--- |
+| **Device events** | `/topic/devices/{deviceId}` | Device owner, relatives with an `ACCEPTED` link | `{ "type": "measurement" \| "analysis" \| "status", "data": ... }` |
+
+- `measurement`: same body as **Get Latest Measurement**, sent for every reading.
+- `analysis`: same body as **Get Latest Analysis**, sent for every new AI analysis.
+- `status`: `{ deviceId, online, lastSeen }`, sent when the device comes online or stops sending for `app.device.online-threshold-seconds`.

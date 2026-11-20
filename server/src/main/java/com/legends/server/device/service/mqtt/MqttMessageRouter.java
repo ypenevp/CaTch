@@ -9,6 +9,7 @@ import org.springframework.stereotype.Component;
 public class MqttMessageRouter {
 
     private final MqttMeasurementListener measurementListener;
+
     public MqttMessageRouter(MqttMeasurementListener measurementListener) {
         this.measurementListener = measurementListener;
     }

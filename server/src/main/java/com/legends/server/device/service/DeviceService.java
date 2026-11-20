@@ -57,10 +57,7 @@ public class DeviceService {
     }
 
     @Transactional(readOnly = true)
-    public Page<DeviceMeasurementResponse> getMeasurements(
-            String deviceId,
-            Long userId,
-            int limit
+    public Page<DeviceMeasurementResponse> getMeasurements(String deviceId, Long userId, int limit
     ) {
         Device device = deviceRepository.findByDeviceIdAndOwnerId(deviceId, userId)
                 .orElseThrow(() -> new ResourceNotFoundException("Device not found"));

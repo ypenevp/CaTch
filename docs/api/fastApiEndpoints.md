@@ -2,7 +2,7 @@
 
 ## Fall Detection Module 
 
-- Base URL: `http://127.0.0.1:7070`
+- Base URL: `http://127.0.0.1:8000`
 
 | Description | Method | Full URL | Required Role | Bearer JWT Required? | Expected Status | Parameters |
 | :--- | :--- | :--- | :--- | :--- | :--- | :--- |

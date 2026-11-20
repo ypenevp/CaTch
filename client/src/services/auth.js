@@ -6,8 +6,6 @@ const API_URL = process.env.EXPO_PUBLIC_API_URL
 
 export const handleSignUp = async ({ username, password, email}) => {
     try {
-        console.log("API URL:", API_URL);
-
         console.log("Signup data:", { username, email, password });
 
         const response = await fetch(`${API_URL}/api/v1/auth/register`, {
@@ -53,8 +51,6 @@ export const handleSignUp = async ({ username, password, email}) => {
 
 export const handleVerify = async ({ code, email }) => {
     try {
-        console.log("API URL:", API_URL);
-
         const response = await fetch(`${API_URL}/api/v1/auth/verify-email`, {
             method: "POST",
             headers: {
@@ -94,7 +90,6 @@ export const handleVerify = async ({ code, email }) => {
 
 export const handleLogin = async ({ email, password }) => {
     try {
-        console.log("API URL:", API_URL);
         const response = await fetch(`${API_URL}/api/v1/auth/login`, {
             method: "POST",
             headers: {
@@ -104,8 +99,7 @@ export const handleLogin = async ({ email, password }) => {
         });
 
         const responseText = await response.text();
-        console.log("Login raw response:", responseText);
-        
+
         let data = {};
         if (responseText) {
             try {
@@ -133,8 +127,6 @@ export const handleLogin = async ({ email, password }) => {
 
 export const handleForgotPassword = async ({ email }) => {
     try {
-        console.log("API URL:", API_URL);
-
         const response = await fetch(`${API_URL}/api/v1/auth/forgot-password`, {
             method: "POST",
             headers: {
@@ -174,8 +166,6 @@ export const handleForgotPassword = async ({ email }) => {
 
 export const handleResetPassword = async ({ email, code, newPassword, confirmPassword }) => {
     try {
-        console.log("API URL:", API_URL);
-
         const response = await fetch(`${API_URL}/api/v1/auth/reset-password`, {
             method: "POST",
             headers: {

@@ -19,7 +19,6 @@ import org.springframework.messaging.MessageChannel;
 @EnableIntegration
 @EnableConfigurationProperties({
         MqttProperties.class,
-        MqttBrokerProperties.class,
         DeviceProperties.class
 })
 public class MqttConfig {
@@ -33,8 +32,6 @@ public class MqttConfig {
     public MqttPahoClientFactory mqttClientFactory(MqttProperties properties) {
         MqttConnectOptions options = new MqttConnectOptions();
         options.setServerURIs(new String[]{properties.brokerUrl()});
-        options.setUserName(properties.username());
-        options.setPassword(properties.password().toCharArray());
         options.setAutomaticReconnect(true);
         options.setCleanSession(true);
 
@@ -49,11 +46,7 @@ public class MqttConfig {
     }
 
     @Bean
-    public MessageProducer mqttInbound(
-            MqttPahoClientFactory mqttClientFactory,
-            MqttProperties properties,
-            MessageChannel mqttInputChannel
-    ) {
+    public MessageProducer mqttInbound(MqttPahoClientFactory mqttClientFactory, MqttProperties properties, MessageChannel mqttInputChannel) {
         MqttPahoMessageDrivenChannelAdapter adapter =
                 new MqttPahoMessageDrivenChannelAdapter(
                         properties.clientId(),

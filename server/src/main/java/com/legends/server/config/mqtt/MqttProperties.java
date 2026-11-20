@@ -8,8 +8,6 @@ import org.springframework.validation.annotation.Validated;
 @ConfigurationProperties(prefix = "mqtt")
 public record MqttProperties(
         @NotBlank String brokerUrl,
-        @NotBlank String clientId,
-        @NotBlank String username,
-        @NotBlank String password
+        @NotBlank String clientId
 ) {
 }

@@ -6,8 +6,6 @@
 struct DeviceConfig {
     String ssid;
     String wifiPassword;
-    String mqttUsername;
-    String mqttPassword;
 };
 
 bool loadDeviceConfig(DeviceConfig &config);

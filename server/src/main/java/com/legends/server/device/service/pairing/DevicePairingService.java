@@ -43,9 +43,7 @@ public class DevicePairingService {
     }
 
     @Transactional
-    public DevicePairingResponse create(
-            CreateDevicePairingRequest request,
-            Long userId
+    public DevicePairingResponse create(CreateDevicePairingRequest request, Long userId
     ) {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new ResourceNotFoundException("User not found"));

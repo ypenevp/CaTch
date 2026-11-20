@@ -1,0 +1,15 @@
+.idea/
+.vscode/
+
+.gradle/
+bin/
+build/
+.git/
+
+.env
+env_template.txt
+Dockerfile
+.dockerignore
+
+*.iml
+*.log
