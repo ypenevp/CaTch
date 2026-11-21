@@ -86,9 +86,7 @@ flowchart LR
 
 ## Technology Stack
 
-<table>
-<tr>
-<td valign="top">
+### Software
 
 | Component | Technology | Version |
 |---|---|---|
@@ -100,8 +98,7 @@ flowchart LR
 | Message broker | Eclipse Mosquitto (MQTT) | 2.x |
 | AI service | FastAPI | 0.163 |
 
-</td>
-<td valign="top">
+### Hardware
 
 | Component | Model | Role |
 |---|---|---|
@@ -111,10 +108,6 @@ flowchart LR
 | Display | SSD1306 OLED 128×64 | Vitals, steps and connection status |
 | Buzzer | Piezo buzzer | Sound feedback for pairing and status |
 | Buttons | 2 × push button | Menu navigation and factory reset |
-
-</td>
-</tr>
-</table>
 
 ## License
 
