@@ -6,7 +6,7 @@
 [![Database](https://img.shields.io/badge/database-PostgreSQL-blue.svg?logo=postgresql&logoColor=white)](https://www.postgresql.org/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-CaTch is a smart bracelet for older people who live alone. It monitors heart rate, blood oxygen and movement around the clock, detects falls with an AI model and lets the family follow everything live from a mobile app.
+> CaTch is a smart bracelet for older people who live alone. It monitors heart rate, blood oxygen and movement around the clock, detects falls with an AI model and lets the family follow everything live from a mobile app.
 
 ## Problem Statement
 
@@ -108,6 +108,30 @@ flowchart LR
 | Display | SSD1306 OLED 128×64 | Vitals, steps and connection status |
 | Buzzer | Piezo buzzer | Sound feedback for pairing and status |
 | Buttons | 2 × push button | Menu navigation and factory reset |
+
+## Build
+
+The backend is packaged as a Docker image. A multi-stage build compiles the jar with Gradle and runs it on a slim JRE image. It works on any system with Docker:
+
+| OS | Requirement |
+|---|---|
+| Windows 10 / 11 | Docker Desktop with the WSL 2 backend |
+| macOS (Intel and Apple Silicon) | Docker Desktop |
+| Linux | Docker Engine |
+
+Create `server/.env` with the variables listed in [`server/env_template.txt`](server/env_template.txt), then build and start the container:
+
+```bash
+cd server
+docker build -t catch-server .
+docker run -d --name catch-backend -p 7070:7070 --env-file .env --restart unless-stopped catch-server
+
+```
+
+View the logs with `docker logs -f catch-server` and stop the container with `docker stop catch-server`.
+
+> [!NOTE]
+> PostgreSQL, the MQTT broker and the AI service are not part of the image and must already be running. Inside the container `localhost` means the container itself, so point `SPRING_DATASOURCE_URL`, `MQTT_BROKER_URL` and `AI_BASE_URL` to `host.docker.internal` when these services run on the host. On Linux, also add `--add-host=host.docker.internal:host-gateway` to `docker run`. `SPRING_PORT` must be `7070` to match the published port.
 
 ## License
 
