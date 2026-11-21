@@ -57,14 +57,6 @@ flowchart LR
     C -- "BLE · Wi-Fi setup" --> B
 ```
 
-| Folder | Contents |
-|---|---|
-| [`client/`](client/) | Mobile app (Expo, React Native, Expo Router) |
-| [`server/`](server/) | Spring Boot backend: REST API, MQTT ingest, WebSocket, statistics |
-| [`ai/`](ai/) | FastAPI service with the fall-detection model |
-| [`firmware/`](firmware/) | ESP32-S3 firmware (PlatformIO) |
-| [`docs/`](docs/) | API reference and project presentation |
-
 Detailed references:
 
 - [REST API endpoints](docs/api/endpoints.md)
@@ -138,20 +130,12 @@ classDiagram
 <table>
   <tr>
     <td align="center">
-      <img src="docs/images/app-home.png" width="190" alt="Home screen with account and connected bracelets"><br>
+      <img src="docs/images/app-home.png" width="240" alt="Home screen with account and connected bracelets"><br>
       <sub>Account and connected bracelets with online status</sub>
     </td>
     <td align="center">
-      <img src="docs/images/app-walking-trends.png" width="190" alt="Walking posture with live vitals and heart rate trend"><br>
+      <img src="docs/images/app-walking-trends.png" width="240" alt="Walking posture with live vitals and heart rate trend"><br>
       <sub>Live vitals, walking posture and heart rate trend</sub>
-    </td>
-    <td align="center">
-      <img src="docs/images/app-sitting.png" width="190" alt="Bracelet screen with sitting posture"><br>
-      <sub>Bracelet details with the detected posture</sub>
-    </td>
-    <td align="center">
-      <img src="docs/images/app-fall-alert.png" width="190" alt="Possible fall alert"><br>
-      <sub>Possible fall: red alert and red posture figure</sub>
     </td>
   </tr>
 </table>
@@ -164,27 +148,15 @@ classDiagram
 
 | Component | Technology | Version |
 |---|---|---|
-| Mobile app | Expo / React Native | SDK 57 / 0.86 |
-| | React | 19.2 |
-| | Expo Router | 57 |
-| | TanStack Query | 5 |
-| | Zustand | 5 |
-| | STOMP.js | 7.5 |
-| | react-native-ble-plx | 3.5 |
+| Mobile app | React Native | 0.86 |
+| | Expo | SDK 57 |
 | Backend | Spring Boot | 4.1.1 |
 | | Java | 25 |
-| | Spring Security + JWT (jjwt) | 0.12.5 |
-| | Spring Integration MQTT (Paho) | 1.2.5 |
-| | Flyway | managed by Boot |
 | Database | PostgreSQL | 17 |
-| Message broker | Eclipse Mosquitto | 2.x |
-| AI service | Python | 3.13 |
-| | FastAPI | 0.163 |
+| Message broker | Eclipse Mosquitto (MQTT) | 2.x |
+| AI service | FastAPI | 0.163 |
 | | PyTorch | 2.x |
-| Firmware | PlatformIO, Arduino (espressif32) | latest |
-| | NimBLE-Arduino | 1.4 |
-| | ArduinoJson | 7 |
-| | PubSubClient | 2.8 |
+| Firmware | PlatformIO (Arduino) | latest |
 
 </td>
 <td valign="top">
