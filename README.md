@@ -1,14 +1,14 @@
 # CaTch
 
-[![Server](https://img.shields.io/badge/server-Spring_Boot-brightgreen.svg)](https://spring.io/projects/spring-boot)
-[![App](https://img.shields.io/badge/app-React_Native-blueviolet.svg)](https://reactnative.dev/)
-[![AI](https://img.shields.io/badge/AI-FastAPI-00BCD4.svg)](https://fastapi.tiangolo.com/)
-[![Database](https://img.shields.io/badge/database-PostgreSQL-blue.svg)](https://www.postgresql.org/)
+[![Server](https://img.shields.io/badge/server-Spring_Boot-brightgreen.svg?logo=springboot&logoColor=white)](https://spring.io/projects/spring-boot)
+[![App](https://img.shields.io/badge/app-React_Native-blueviolet.svg?logo=react&logoColor=white)](https://reactnative.dev/)
+[![AI](https://img.shields.io/badge/AI-FastAPI-00BCD4.svg?logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com/)
+[![Database](https://img.shields.io/badge/database-PostgreSQL-blue.svg?logo=postgresql&logoColor=white)](https://www.postgresql.org/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
 CaTch is a smart bracelet for older people who live alone. It monitors heart rate, blood oxygen and movement around the clock, detects falls with an AI model and lets the family follow everything live from a mobile app.
 
-## The problem
+## Problem Statement
 
 One in three people over 65 falls every year, and falls are a leading cause of accidental injury deaths worldwide (WHO). For someone who lives alone, the fall itself is often not the worst part:
 
@@ -17,21 +17,24 @@ One in three people over 65 falls every year, and falls are a leading cause of a
 - **The family is in the dark.** Relatives only know how things are when they call.
 - **SOS buttons need a press.** After a fall, many people cannot press one.
 
-CaTch removes the need to ask for help. The bracelet sends a reading every second, the server analyses the motion and the family sees a possible fall in the app straight away, without the wearer doing anything. See [how it works](#architecture).
+CaTch removes the need to ask for help. The bracelet sends a reading every second, the server analyses the motion and the family sees a possible fall in the app straight away, without the wearer doing anything. See [System Architecture](#system-architecture).
 
-## Features
+## Key Features
 
 **Core**
 
 - **Automatic fall detection.** A PyTorch model analyses 75 motion samples (acceleration and rotation) and returns the activity and a fall probability. A detected fall shows a red alert and a red posture figure in the app.
-- **Live vitals.** Heart rate and SpO₂ are updated every second and pushed to the app in real time over WebSocket (STOMP), so the app does not poll.
+- **Live vitals.** Heart rate and SpO₂ are updated every second and pushed to the app in real time over WebSocket (STOMP).
 - **Activity and posture.** The model recognises walking, standing still, lying down, stairs and transitions, and the app shows them as an animated figure.
 - **Online status.** You see whether the bracelet is connected and when it was last seen.
 
 **Monitoring**
 
-- **Trends and statistics.** Heart rate and SpO₂ charts for live, 10 min, 30 min and 1 h windows, with min, average and max values. Readings are grouped into 10-second buckets on the server.
+- **Trends and statistics.** Heart rate and SpO₂ charts for live, 10 min, 30 min and 1 h windows, with min, average and max values.
 - **Step counter.** The bracelet counts steps on-device from the accelerometer and shows them on its display.
+
+> [!NOTE]
+> The server keeps the last 120 raw readings per bracelet (about 2 minutes). Longer history is stored as 10-second statistics buckets for 60 minutes, so trends stay fast and the database stays small.
 
 **Setup and accounts**
 
@@ -40,9 +43,9 @@ CaTch removes the need to ask for help. The bracelet sends a reading every secon
 - **Family sharing.** The owner invites relatives by username. Once they accept, relatives get read access to the owner's bracelets.
 
 > [!IMPORTANT]
-> CaTch is a student project and not a certified medical device. It is meant to support, not replace, professional care and emergency services.
+> The ESP32-S3 supports 2.4 GHz Wi-Fi only. During setup, choose a 2.4 GHz network; the bracelet cannot connect to a 5 GHz-only network.
 
-## Architecture
+## System Architecture
 
 ```mermaid
 flowchart LR
@@ -55,75 +58,10 @@ flowchart LR
     C -- "BLE · Wi-Fi setup" --> B
 ```
 
-Detailed references:
+> [!NOTE]
+> Fall detection runs on the server, not on the bracelet. Spring Boot sends the latest 75 readings to the AI service, saves the result and pushes it to every subscribed app. If the WebSocket connection drops, the app falls back to polling the REST API until it reconnects.
 
-- [REST API endpoints](docs/api/endpoints.md)
-- [AI service endpoints](docs/api/fastApiEndpoints.md)
-- [Project presentation](docs/presentation/catch.html)
-
-### Domain model
-
-```mermaid
-classDiagram
-    direction LR
-    class User {
-        Long id
-        String username
-        String email
-        Role role
-        boolean emailVerified
-        boolean active
-    }
-    class Device {
-        Long id
-        String deviceId
-        DeviceStatus status
-        Instant claimedAt
-    }
-    class DeviceMeasurement {
-        Instant measuredAt
-        Double accelX, accelY, accelZ
-        Double gyroX, gyroY, gyroZ
-        Integer heartRate
-        Double spo2
-    }
-    class DeviceStatistics {
-        Instant bucketStart
-        Integer heartRateMin, heartRateMax
-        Double spo2Min, spo2Max
-    }
-    class AiAnalysis {
-        String activity
-        boolean fallDetected
-        Double fallProbability
-        Instant analyzedAt
-    }
-    class DevicePairing {
-        UUID id
-        DevicePairingStatus status
-        Instant expiresAt
-    }
-    class UserRelative {
-        UserRelativeStatus status
-        Instant acceptedAt
-    }
-    class RefreshToken {
-        String token
-        Instant expiresAt
-    }
-
-    User "1" --> "0..*" Device : owns
-    Device "1" --> "0..*" DeviceMeasurement
-    Device "1" --> "0..*" DeviceStatistics
-    Device "1" --> "0..*" AiAnalysis
-    User "1" --> "0..*" DevicePairing
-    DevicePairing "0..*" --> "1" Device
-    User "1" --> "0..*" UserRelative : invites
-    UserRelative "0..*" --> "1" User : relative
-    User "1" --> "0..1" RefreshToken
-```
-
-## Screenshots
+## Application Preview
 
 <table>
   <tr>
@@ -138,7 +76,15 @@ classDiagram
   </tr>
 </table>
 
-## Tech stack
+## Documentation
+
+| Document | Description |
+|---|---|
+| [REST API endpoints](docs/api/endpoints.md) | Endpoints, request and response formats of the Spring Boot API |
+| [AI service endpoints](docs/api/fastApiEndpoints.md) | The `/analyze` endpoint of the fall-detection service |
+| [Project presentation](docs/presentation/catch.html) | Problem, solution, architecture and hardware overview |
+
+## Technology Stack
 
 <table>
 <tr>
@@ -153,8 +99,6 @@ classDiagram
 | Database | PostgreSQL | 17 |
 | Message broker | Eclipse Mosquitto (MQTT) | 2.x |
 | AI service | FastAPI | 0.163 |
-| | PyTorch | 2.x |
-| Firmware | PlatformIO (Arduino) | latest |
 
 </td>
 <td valign="top">
@@ -171,9 +115,6 @@ classDiagram
 </td>
 </tr>
 </table>
-
-> [!NOTE]
-> In the current firmware build the heart rate and SpO₂ values are simulated. Integration of the MAX30102 driver is in progress. Motion data from the MPU6050 is real.
 
 ## License
 
