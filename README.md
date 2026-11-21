@@ -1,12 +1,10 @@
 # CaTch
 
-![Spring Boot](https://img.shields.io/badge/Spring_Boot-4.1-6DB33F?logo=springboot&logoColor=white)
-![React Native](https://img.shields.io/badge/React_Native-0.86-61DAFB?logo=react&logoColor=black)
-![Expo](https://img.shields.io/badge/Expo-SDK_57-000020?logo=expo&logoColor=white)
-![PostgreSQL](https://img.shields.io/badge/PostgreSQL-17-4169E1?logo=postgresql&logoColor=white)
-![FastAPI](https://img.shields.io/badge/FastAPI-PyTorch-009688?logo=fastapi&logoColor=white)
-![MQTT](https://img.shields.io/badge/MQTT-Mosquitto-660066?logo=eclipsemosquitto&logoColor=white)
-![ESP32](https://img.shields.io/badge/ESP32--S3-PlatformIO-E7352C?logo=espressif&logoColor=white)
+[![Server](https://img.shields.io/badge/server-Spring_Boot-brightgreen.svg)](https://spring.io/projects/spring-boot)
+[![App](https://img.shields.io/badge/app-React_Native-blueviolet.svg)](https://reactnative.dev/)
+[![AI](https://img.shields.io/badge/AI-FastAPI-00BCD4.svg)](https://fastapi.tiangolo.com/)
+[![Database](https://img.shields.io/badge/database-PostgreSQL-blue.svg)](https://www.postgresql.org/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
 CaTch is a smart bracelet for older people who live alone. It monitors heart rate, blood oxygen and movement around the clock, detects falls with an AI model and lets the family follow everything live from a mobile app.
 
