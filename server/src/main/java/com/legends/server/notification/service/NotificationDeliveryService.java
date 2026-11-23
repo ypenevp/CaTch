@@ -6,6 +6,8 @@ import com.legends.server.exception.custom.EmailDeliveryException;
 import com.legends.server.notification.entity.NotificationDeliveryStatus;
 import com.legends.server.notification.repository.NotificationRepository;
 import com.legends.server.notification.repository.UserPushTokenRepository;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -14,6 +16,8 @@ import java.util.Map;
 
 @Service
 public class NotificationDeliveryService {
+
+    private static final Logger log = LoggerFactory.getLogger(NotificationDeliveryService.class);
 
     private final NotificationRepository notificationRepository;
     private final UserPushTokenRepository pushTokenRepository;
@@ -77,8 +81,15 @@ public class NotificationDeliveryService {
                             data
                     );
                     sent = true;
-                } catch (FirebaseMessagingException | IllegalStateException exception) {
-                    pushToken.setActive(false);
+                } catch (FirebaseMessagingException exception) {
+                    if (firebasePushService.isInvalidToken(exception)) {
+                        pushToken.setActive(false);
+                    }
+                    log.warn("Push for notification {} failed: {}",
+                            notification.getId(), exception.getMessagingErrorCode());
+                } catch (IllegalStateException exception) {
+                    log.error("Push for notification {} skipped: {}", notification.getId(), exception.getMessage());
+                    break;
                 }
             }
 

@@ -6,7 +6,6 @@ import com.legends.server.ai.repository.AiAnalysisRepository;
 import com.legends.server.auth.entity.User;
 import com.legends.server.device.entity.Device;
 import com.legends.server.device.repository.DeviceRepository;
-import com.legends.server.exception.custom.AccessDeniedException;
 import com.legends.server.exception.custom.ResourceNotFoundException;
 import com.legends.server.notification.dto.response.NotificationResponse;
 import com.legends.server.notification.dto.response.UnreadNotificationCountResponse;
@@ -27,9 +26,13 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.event.TransactionPhase;
 import org.springframework.transaction.event.TransactionalEventListener;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.LinkedHashSet;
+import java.util.List;
 import java.util.Set;
 
 @Service
@@ -95,6 +98,7 @@ public class NotificationService {
                 .findAllByUserIdAndStatus(device.getOwner().getId(), UserRelativeStatus.ACCEPTED)
                 .forEach(link -> recipients.add(link.getRelative()));
 
+        List<Long> createdIds = new ArrayList<>();
         for (User recipient : recipients) {
             if (notificationRepository.existsByAiAnalysis_IdAndRecipient_Id(aiAnalysis.getId(), recipient.getId())) {
                 continue;
@@ -123,9 +127,25 @@ public class NotificationService {
                 saved.setRealtimeStatus(NotificationDeliveryStatus.FAILED);
             }
 
-            deliveryService.deliverEmail(saved.getId());
-            deliveryService.deliverPush(saved.getId());
+            createdIds.add(saved.getId());
         }
+
+        deliverAfterCommit(createdIds);
+    }
+
+    private void deliverAfterCommit(List<Long> notificationIds) {
+        if (notificationIds.isEmpty()) {
+            return;
+        }
+        TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+            @Override
+            public void afterCommit() {
+                for (Long notificationId : notificationIds) {
+                    deliveryService.deliverEmail(notificationId);
+                    deliveryService.deliverPush(notificationId);
+                }
+            }
+        });
     }
 
     @Transactional(readOnly = true)
@@ -144,7 +164,7 @@ public class NotificationService {
     @Transactional
     public NotificationResponse markAsRead(Long notificationId, Long userId) {
         Notification notification = notificationRepository.findByIdAndRecipientId(notificationId, userId)
-                .orElseThrow(() -> new AccessDeniedException("Notification not found"));
+                .orElseThrow(() -> new ResourceNotFoundException("Notification not found"));
         if (notification.getReadAt() == null) {
             notification.setReadAt(Instant.now());
         }

@@ -19,7 +19,7 @@ MQTT_BROKER_URL= #for tests: tcp://localhost:1883
 MQTT_CLIENT_ID= #for tests: catch-server
 
 #for Firebase notifications
-FIREBASE_CREDENTIALS_PATH==
+FIREBASE_CREDENTIALS_PATH=
 
 #for AI fall detection server
 AI_BASE_URL= #for tests: http://127.0.0.1:8001

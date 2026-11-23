@@ -4,9 +4,11 @@ import com.google.auth.oauth2.GoogleCredentials;
 import com.google.firebase.FirebaseApp;
 import com.google.firebase.FirebaseOptions;
 import com.google.firebase.messaging.AndroidConfig;
+import com.google.firebase.messaging.AndroidNotification;
 import com.google.firebase.messaging.FirebaseMessaging;
 import com.google.firebase.messaging.FirebaseMessagingException;
 import com.google.firebase.messaging.Message;
+import com.google.firebase.messaging.MessagingErrorCode;
 import com.google.firebase.messaging.Notification;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -23,13 +25,25 @@ public class FirebasePushService {
     private static final Logger log = LoggerFactory.getLogger(FirebasePushService.class);
 
     private final String credentialsPath;
+    private final String androidChannelId;
 
-    public FirebasePushService(@Value("${app.firebase.credentials-path:}") String credentialsPath) {
+    public FirebasePushService(
+            @Value("${app.firebase.credentials-path:}") String credentialsPath,
+            @Value("${app.firebase.android-channel-id:fall-alerts}") String androidChannelId
+    ) {
         this.credentialsPath = credentialsPath;
+        this.androidChannelId = androidChannelId;
     }
 
     public boolean isConfigured() {
         return credentialsPath != null && !credentialsPath.isBlank();
+    }
+
+    public boolean isInvalidToken(FirebaseMessagingException exception) {
+        MessagingErrorCode code = exception.getMessagingErrorCode();
+        return code == MessagingErrorCode.UNREGISTERED
+                || code == MessagingErrorCode.INVALID_ARGUMENT
+                || code == MessagingErrorCode.SENDER_ID_MISMATCH;
     }
 
     public void send(
@@ -49,6 +63,9 @@ public class FirebasePushService {
                 .putAllData(data)
                 .setAndroidConfig(AndroidConfig.builder()
                         .setPriority(AndroidConfig.Priority.HIGH)
+                        .setNotification(AndroidNotification.builder()
+                                .setChannelId(androidChannelId)
+                                .build())
                         .build())
                 .build();
 
