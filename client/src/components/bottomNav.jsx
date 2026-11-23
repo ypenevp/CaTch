@@ -54,7 +54,7 @@ export default function BottomNav() {
                         onPress={() => router.push('/' + tab.route)}
                         activeOpacity={0.7}
                         accessibilityRole="tab"
-                        accessibilityLabel={tab.name}
+                        accessibilityLabel={showBadge ? `${tab.name}, ${unreadAlerts} unread` : tab.name}
                         accessibilityState={{ selected: isActive }}
                     >
                         <Animated.View style={{ transform: [{ scale: iconScale }] }}>
