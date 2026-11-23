@@ -12,6 +12,7 @@ import { QueryClientProvider } from "@tanstack/react-query";
 import { queryClient, subscribeAppFocus } from "@/lib/queryClient";
 import { useRealtimeConnection } from "@/hooks/useRealtimeConnection";
 import BottomNav from "@/components/bottomNav";
+import NotificationListener from "@/components/NotificationListener";
 import TopNav from "@/components/topNav";
 import Login from "@/components/logIn";
 import SignUp from "@/components/signUp";
@@ -68,8 +69,9 @@ export default function Layout() {
         <View style={{ flex: 1 }}>
           <Stack screenOptions={{ headerShown: false }} />
         </View>
+        <NotificationListener />
         <BottomNav />
-  
+
         <Modal
           visible={isVisible}
           transparent

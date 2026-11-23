@@ -3,6 +3,7 @@ import { View, TouchableOpacity, Animated } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useRouter, usePathname } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useUnreadCount } from '@/hooks/useNotifications';
 import { theme } from '../theme/theme';
 
 const BAR_HEIGHT = 64;
@@ -12,7 +13,8 @@ const TABS = [
     { name: 'Alerts', route: 'alerts', icon: 'bell-outline', activeIcon: 'bell' },
 ];
 
-export default function BottomNav({ unreadAlerts = 0 }) {
+export default function BottomNav() {
+    const { data: unreadAlerts = 0 } = useUnreadCount();
     const router = useRouter();
     const pathname = usePathname();
     const insets = useSafeAreaInsets();

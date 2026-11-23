@@ -1,6 +1,7 @@
 import { useEffect } from "react";
 import { AppState } from "react-native";
 import { deviceKeys } from "@/hooks/useDevices";
+import { notificationKeys } from "@/hooks/useNotifications";
 import { queryClient } from "@/lib/queryClient";
 import { realtime } from "@/services/realtime";
 import useAuthStore from "@/store/AuthStore";
@@ -14,7 +15,10 @@ export function useRealtimeConnection() {
     let hasConnected = false;
     const stopStatus = realtime.onStatusChange(() => {
       if (!realtime.isConnected()) return;
-      if (hasConnected) queryClient.invalidateQueries({ queryKey: deviceKeys.all });
+      if (hasConnected) {
+        queryClient.invalidateQueries({ queryKey: deviceKeys.all });
+        queryClient.invalidateQueries({ queryKey: notificationKeys.all });
+      }
       hasConnected = true;
     });
 

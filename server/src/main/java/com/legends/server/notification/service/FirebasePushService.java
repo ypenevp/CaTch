@@ -1,5 +1,6 @@
 package com.legends.server.notification.service;
 
+import com.google.api.client.http.javanet.NetHttpTransport;
 import com.google.auth.oauth2.GoogleCredentials;
 import com.google.firebase.FirebaseApp;
 import com.google.firebase.FirebaseOptions;
@@ -83,6 +84,9 @@ public class FirebasePushService {
         try (FileInputStream credentialsStream = new FileInputStream(credentialsPath)) {
             FirebaseOptions options = FirebaseOptions.builder()
                     .setCredentials(GoogleCredentials.fromStream(credentialsStream))
+                    // Spring Boot manages a newer httpclient5 that already unzips responses, so the default
+                    // Apache transport fails with "Not in GZIP format" after FCM has accepted the message.
+                    .setHttpTransport(new NetHttpTransport())
                     .build();
             FirebaseApp.initializeApp(options);
         } catch (IOException exception) {

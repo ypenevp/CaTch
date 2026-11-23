@@ -59,6 +59,7 @@ public class NotificationDeliveryService {
     public void deliverPush(Long notificationId) {
         notificationRepository.findById(notificationId).ifPresent(notification -> {
             if (!firebasePushService.isConfigured()) {
+                log.info("Push for notification {} skipped: FIREBASE_CREDENTIALS_PATH is not set", notification.getId());
                 notification.setPushStatus(NotificationDeliveryStatus.SKIPPED);
                 return;
             }
@@ -71,8 +72,15 @@ public class NotificationDeliveryService {
                     "screen", "fall_details"
             );
 
-            boolean sent = false;
-            for (var pushToken : pushTokenRepository.findAllByUserIdAndActiveTrue(notification.getRecipient().getId())) {
+            Long recipientId = notification.getRecipient().getId();
+            var pushTokens = pushTokenRepository.findAllByUserIdAndActiveTrue(recipientId);
+            if (pushTokens.isEmpty()) {
+                log.info("Push for notification {} not sent: user {} has no active push tokens",
+                        notification.getId(), recipientId);
+            }
+
+            int sent = 0;
+            for (var pushToken : pushTokens) {
                 try {
                     firebasePushService.send(
                             pushToken.getToken(),
@@ -80,20 +88,26 @@ public class NotificationDeliveryService {
                             notification.getMessage(),
                             data
                     );
-                    sent = true;
+                    sent++;
                 } catch (FirebaseMessagingException exception) {
-                    if (firebasePushService.isInvalidToken(exception)) {
+                    boolean invalidToken = firebasePushService.isInvalidToken(exception);
+                    if (invalidToken) {
                         pushToken.setActive(false);
                     }
-                    log.warn("Push for notification {} failed: {}",
-                            notification.getId(), exception.getMessagingErrorCode());
+                    // getMessagingErrorCode() is null for errors like a disabled FCM API, so log the general code and message too
+                    log.warn("Push for notification {} failed: messagingErrorCode={}, errorCode={}, tokenDeactivated={}, message={}",
+                            notification.getId(), exception.getMessagingErrorCode(), exception.getErrorCode(),
+                            invalidToken, exception.getMessage());
                 } catch (IllegalStateException exception) {
-                    log.error("Push for notification {} skipped: {}", notification.getId(), exception.getMessage());
+                    log.error("Push for notification {} skipped: {}", notification.getId(), exception.getMessage(), exception);
                     break;
                 }
             }
 
-            notification.setPushStatus(sent
+            if (sent > 0) {
+                log.info("Push for notification {} sent to {} device(s)", notification.getId(), sent);
+            }
+            notification.setPushStatus(sent > 0
                     ? NotificationDeliveryStatus.SENT
                     : NotificationDeliveryStatus.FAILED);
         });

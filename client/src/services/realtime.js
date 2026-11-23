@@ -95,3 +95,4 @@ export const realtime = {
 };
 
 export const deviceTopic = (deviceId) => `/topic/devices/${deviceId}`;
+export const userNotificationsTopic = (userId) => `/topic/users/${userId}/notifications`;

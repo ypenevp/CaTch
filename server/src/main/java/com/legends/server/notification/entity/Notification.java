@@ -6,9 +6,13 @@ import com.legends.server.device.entity.Device;
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
+import org.hibernate.annotations.DynamicUpdate;
 
 import java.time.Instant;
 
+// Email and push update their own status columns in parallel transactions;
+// updating only the changed columns keeps one from overwriting the other.
+@DynamicUpdate
 @Entity
 @Getter
 @Setter

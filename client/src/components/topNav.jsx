@@ -3,6 +3,7 @@ import { View, Text, TouchableOpacity, StatusBar } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { removeCurrentPushToken } from '@/services/notifications';
 import useAuthStore from '../store/AuthStore.js';
 import useUIStore from '../store/UIStore.js';
 import { theme } from '../theme/theme';
@@ -23,6 +24,12 @@ const TopNav = () => {
     const isLoggedIn = !!authUser;
 
     const handleLogout = async () => {
+        // Needs the access token, so it runs before logout; a failure must not block logging out
+        try {
+            await removeCurrentPushToken();
+        } catch (error) {
+            console.warn('Push token removal failed:', error.message);
+        }
         await logout();
         router.replace('/');
     };
