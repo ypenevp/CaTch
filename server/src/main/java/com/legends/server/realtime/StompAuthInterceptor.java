@@ -72,12 +72,25 @@ public class StompAuthInterceptor implements ChannelInterceptor {
 
     // a refused subscription is dropped instead of closing the whole connection
     private boolean canSubscribe(StompHeaderAccessor accessor) {
-        Optional<String> deviceId = DeviceTopics.deviceIdOf(accessor.getDestination());
-        if (deviceId.isEmpty() || !(accessor.getUser() instanceof Authentication authentication)) {
+        if (!(accessor.getUser() instanceof Authentication authentication)) {
             return false;
         }
 
         Long userId = (Long) authentication.getPrincipal();
+        Optional<Long> notificationUserId = DeviceTopics.notificationUserIdOf(accessor.getDestination());
+        if (notificationUserId.isPresent()) {
+            boolean allowed = notificationUserId.get().equals(userId);
+            if (!allowed) {
+                log.debug("Refused notification subscription of user {}", userId);
+            }
+            return allowed;
+        }
+
+        Optional<String> deviceId = DeviceTopics.deviceIdOf(accessor.getDestination());
+        if (deviceId.isEmpty()) {
+            return false;
+        }
+
         boolean allowed = deviceAccessService.canView(deviceId.get(), userId);
         if (!allowed) {
             log.debug("Refused subscription of user {} to device {}", userId, deviceId.get());

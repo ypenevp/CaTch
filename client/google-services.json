@@ -1,0 +1,48 @@
+{
+  "project_info": {
+    "project_number": "629899077159",
+    "project_id": "catch-acd7e",
+    "storage_bucket": "catch-acd7e.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:629899077159:android:f6cd7f4633d5ba04a1d002",
+        "android_client_info": {
+          "package_name": "com.catch.app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCj5G69-XLYz-eK5AUIPj2-jij9RfNiSyc"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:629899077159:android:01705e54886efb4ca1d002",
+        "android_client_info": {
+          "package_name": "com.catchapp.app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCj5G69-XLYz-eK5AUIPj2-jij9RfNiSyc"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

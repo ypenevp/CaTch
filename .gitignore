@@ -4,6 +4,7 @@
 *.env
 *.gradle
 bin/
+server/firebase/
 
 **/build/
 !**/src/**/build/

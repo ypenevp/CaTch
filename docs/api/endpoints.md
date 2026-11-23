@@ -65,6 +65,20 @@
 | **Get Device Analyses** | `GET` | `/api/v1/devices/{deviceId}/analyses` | `Authenticated` | Yes | `200` | **Path param:** `deviceId`, **Query params:** `fallsOnly` (default: `false`), `page`, `size`, `sort` |
 | **Get Latest Analysis** | `GET` | `/api/v1/devices/{deviceId}/analyses/latest` | `Authenticated` | Yes | `200` | **Path param:** `deviceId` |
 
+## Notification Module
+
+- Base URL: `/api/v1/notifications`
+
+| Description | Method | Full URL | Required Role | Authentication Required? | Expected Status | Parameters |
+| :--- | :--- | :--- | :--- | :--- | :--- | :--- |
+| **Get Notifications** | `GET` | `/api/v1/notifications` | `Authenticated` | Yes | `200` | **Query params:** `page`, `size`, `sort` |
+| **Get Unread Notification Count** | `GET` | `/api/v1/notifications/unread-count` | `Authenticated` | Yes | `200` | **None** |
+| **Mark Notification As Read** | `PATCH` | `/api/v1/notifications/{notificationId}/read` | `Authenticated` | Yes | `200` | **Path param:** `notificationId` |
+| **Register Push Token** | `POST` | `/api/v1/notifications/push-tokens` | `Authenticated` | Yes | `204` | **Body:** `token`, `platform`, `deviceName` |
+| **Remove Push Token** | `DELETE` | `/api/v1/notifications/push-tokens` | `Authenticated` | Yes | `204` | **Body:** `token` |
+
+Supported push token platforms are `ANDROID`, `IOS`, and `WEB`.
+
 ## Real-time (WebSocket / STOMP)
 
 - Endpoint: `ws://<host>:<port>/ws` (`wss://` in production), plain WebSocket, no SockJS.
@@ -74,6 +88,7 @@
 | Description | Destination | Who can subscribe | Message |
 | :--- | :--- | :--- | :--- |
 | **Device events** | `/topic/devices/{deviceId}` | Device owner, relatives with an `ACCEPTED` link | `{ "type": "measurement" \| "analysis" \| "status", "data": ... }` |
+| **Notifications** | `/topic/users/{userId}/notifications` | The authenticated notification recipient | `{ "id", "type", "title", "message", "deviceId", "aiAnalysisId", "fallProbability", "detectedAt", "readAt", "createdAt" }` |
 
 - `measurement`: same body as **Get Latest Measurement**, sent for every reading.
 - `analysis`: same body as **Get Latest Analysis**, sent for every new AI analysis.

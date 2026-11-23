@@ -68,6 +68,28 @@ public class EmailService {
         }
     }
 
+    public void sendFallAlertEmail(String recipient, String deviceId, double probability, java.time.Instant detectedAt) {
+        MimeMessage message = mailSender.createMimeMessage();
+        int probabilityPercent = (int) Math.round(probability * 100);
+
+        try {
+            MimeMessageHelper helper = new MimeMessageHelper(message, MimeMessageHelper.MULTIPART_MODE_RELATED, StandardCharsets.UTF_8.name());
+            helper.setFrom(sender);
+            helper.setTo(recipient);
+            helper.setSubject("Possible fall detected for " + deviceId);
+            helper.setText("""
+                    <h2>Possible fall detected</h2>
+                    <p>CaTch detected a possible fall for device <strong>%s</strong>.</p>
+                    <p>Probability: <strong>%d%%</strong></p>
+                    <p>Detected at: %s</p>
+                    <p>Please open the CaTch application and check the person.</p>
+                    """.formatted(deviceId, probabilityPercent, detectedAt), true);
+            mailSender.send(message);
+        } catch (MessagingException | MailException exception) {
+            throw new EmailDeliveryException("Unable to send fall alert email", exception);
+        }
+    }
+
     private String fillCode(String template, String rawCode) {
         String content = template.replace("{{EXPIRATION_MINUTES}}", String.valueOf(expirationMinutes));
 

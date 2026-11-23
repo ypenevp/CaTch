@@ -36,6 +36,7 @@ dependencies {
     implementation("org.springframework.integration:spring-integration-mqtt")
     implementation("org.eclipse.paho:org.eclipse.paho.client.mqttv3:1.2.5")
     implementation("org.flywaydb:flyway-database-postgresql")
+    implementation("com.google.firebase:firebase-admin:9.7.0")
     testImplementation("org.springframework.boot:spring-boot-starter-data-jpa-test")
     testImplementation("org.springframework.boot:spring-boot-starter-security-test")
     testImplementation("org.springframework.boot:spring-boot-starter-validation-test")

@@ -35,4 +35,7 @@ public interface UserRelativeRepository extends JpaRepository<UserRelative, Long
 
     @EntityGraph(attributePaths = "user")
     Page<UserRelative> findAllByRelativeIdAndStatus(Long relativeId, UserRelativeStatus status, Pageable pageable);
+
+    @EntityGraph(attributePaths = "relative")
+    List<UserRelative> findAllByUserIdAndStatus(Long userId, UserRelativeStatus status);
 }
