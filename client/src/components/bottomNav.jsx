@@ -1,5 +1,5 @@
 import React, { useEffect, useRef } from 'react';
-import { View, TouchableOpacity, Animated } from 'react-native';
+import { View, Text, TouchableOpacity, Animated } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useRouter, usePathname } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -61,10 +61,18 @@ export default function BottomNav() {
                             <MaterialCommunityIcons name={isActive ? tab.activeIcon : tab.icon} size={26} color={color} />
                             {showBadge && (
                                 <View style={{
-                                    position: 'absolute', top: -2, right: -4, width: 12, height: 12,
-                                    borderRadius: 6, backgroundColor: theme.danger,
-                                    borderWidth: 2, borderColor: theme.surface,
-                                }} />
+                                    position: 'absolute', top: -6, right: -12, minWidth: 20, height: 20,
+                                    paddingHorizontal: theme.space.xs, borderRadius: 10,
+                                    backgroundColor: theme.danger, borderWidth: 2, borderColor: theme.surface,
+                                    alignItems: 'center', justifyContent: 'center',
+                                }}>
+                                    <Text style={{
+                                        fontFamily: theme.font.semibold, fontSize: theme.size.xxs,
+                                        lineHeight: 12, color: theme.surface,
+                                    }}>
+                                        {unreadAlerts > 9 ? '9+' : unreadAlerts}
+                                    </Text>
+                                </View>
                             )}
                         </Animated.View>
                         <Animated.Text style={{
