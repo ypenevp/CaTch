@@ -1,7 +1,9 @@
 # End-to-end test of everything CaTch can do so far, for one account and one bracelet.
 #
-# Settings come from client/.env (the same file the app uses), so everyone in the team can run it without
-# editing the script. Database settings fall back to server/.env. Parameters override both.
+# It asks for the email and the password of your account, then picks your bracelet from GET /devices/my
+# (a list to choose from when you have more than one). Services and the database come from client/.env
+# (the same file the app uses) with fallbacks from server/.env, so nobody has to edit the script.
+# Parameters override everything.
 #
 # What it checks (each check is numbered and logged with the request, the expected and the actual result):
 #   Services      Spring, AI server, Mosquitto, mosquitto_pub, database (Docker or local PostgreSQL), emulator
@@ -156,9 +158,6 @@ $wsUrl = ($apiUrl -replace "^http", "ws") + "/ws"
 $aiUrl = (Setting "AI URL" $null "CATCH_TEST_AI_URL" "AI_BASE_URL" "http://127.0.0.1:8001").TrimEnd("/")
 $broker = Setting "MQTT host" $null "CATCH_TEST_MQTT_HOST" $null "127.0.0.1"
 $mqttPort = [int](Setting "MQTT port" $null "CATCH_TEST_MQTT_PORT" $null "1883")
-$DeviceId = Setting "Bracelet" $DeviceId "CATCH_TEST_DEVICE_ID" $null "Catch-001"
-$Email = Setting "Email" $Email "CATCH_TEST_EMAIL" $null $null
-$envPassword = Setting "Password" $null "CATCH_TEST_PASSWORD" $null $null -Secret
 $Db = Setting "Database mode" $Db "CATCH_TEST_DB_MODE" $null "auto"
 $dbContainer = Setting "DB container" $null "CATCH_TEST_DB_CONTAINER" $null "docker-sql-db-1"
 
@@ -178,8 +177,13 @@ $dbPassword = Setting "DB password" $null "CATCH_TEST_DB_PASSWORD" "SPRING_DATAS
 $psqlPath = Setting "psql" $null "CATCH_TEST_PSQL" $null $null
 $mosquittoPub = Setting "mosquitto_pub" $null "CATCH_TEST_MOSQUITTO_PUB" $null "C:\Program Files\Mosquitto\mosquitto_pub.exe"
 
-$topic = "devices/$DeviceId/measurements"
-$encodedDevice = [Uri]::EscapeDataString($DeviceId)
+# The bracelet is chosen after the login (from your devices), or given with -DeviceId
+function Set-Device([string]$id) {
+    $script:DeviceId = $id
+    $script:topic = "devices/$id/measurements"
+    $script:encodedDevice = [Uri]::EscapeDataString($id)
+}
+if ($DeviceId) { Set-Device $DeviceId }
 $Phases = @($Phases | ForEach-Object { $_ -split "," } | ForEach-Object { $_.Trim() } | Where-Object { $_ })
 
 $expected = @{
@@ -813,10 +817,9 @@ try {
 
     # -----------------------------------------------------------------------
     Section "Account"
-    if (-not $Email -and -not $NoPrompt) { $Email = Read-Host "        Email of the test account (Enter = database-only run)" }
+    if (-not $Email -and -not $NoPrompt) { $Email = (Read-Host "        Email of the test account (Enter = database-only run)").Trim() }
     if ($Email) {
-        if ($envPassword) { $script:password = $envPassword; Write-Detail "password from client/.env CATCH_TEST_PASSWORD" }
-        elseif (-not $NoPrompt) {
+        if (-not $NoPrompt) {
             $secure = Read-Host "        Password for $Email" -AsSecureString
             $bstr = [Runtime.InteropServices.Marshal]::SecureStringToBSTR($secure)
             try { $script:password = [Runtime.InteropServices.Marshal]::PtrToStringBSTR($bstr) } finally { [Runtime.InteropServices.Marshal]::ZeroFreeBSTR($bstr) }
@@ -834,7 +837,7 @@ try {
             $script:useApi = $true
         }
     } else {
-        Skip-Test "Login" "no email/password (set CATCH_TEST_EMAIL / CATCH_TEST_PASSWORD or run without -NoPrompt)"
+        Skip-Test "Login" "no email/password (run without -NoPrompt to type them)"
     }
 
     if ($script:useApi) {
@@ -888,10 +891,34 @@ try {
 
         # -------------------------------------------------------------------
         Section "Devices"
-        Test-Request "My devices" GET "/api/v1/devices/my?page=0&size=50" -Check {
-            param($r); $d = @($r.data.content | Where-Object { $_.deviceId -eq $DeviceId })
-            if ($d.Count) { Ok "$($r.data.totalElements) device(s), $DeviceId is one of them ($($d[0].status))" } else { Bad "$DeviceId is not in the list" }
-        } | Out-Null
+        $mine = Test-Request "My devices" GET "/api/v1/devices/my?page=0&size=50" -Check {
+            param($r); $list = @($r.data.content)
+            if ($list.Count) { Ok ("{0} device(s): {1}" -f $r.data.totalElements, (($list | ForEach-Object { "$($_.deviceId) ($($_.status))" }) -join ", ")) }
+            else { Bad "this account has no bracelets (pair one in the app first)" }
+        }
+        $myDevices = @($mine.data.content | Where-Object { $_ })
+        $active = @($myDevices | Where-Object { $_.status -eq "ACTIVE" })
+        if ($DeviceId) {
+            if (-not @($myDevices | Where-Object { $_.deviceId -eq $DeviceId }).Count) { Fail "-DeviceId $DeviceId is not one of your bracelets"; throw "STOP" }
+            Write-Detail "bracelet from -DeviceId: $DeviceId"
+        } elseif ($active.Count -eq 0) {
+            Fail "no ACTIVE bracelet on this account (pair one in the app first)"; throw "STOP"
+        } elseif ($active.Count -eq 1 -or $NoPrompt) {
+            Set-Device $active[0].deviceId
+            Write-Detail "bracelet: $DeviceId (the only ACTIVE one or the first with -NoPrompt)"
+        } else {
+            Write-Host "        Your ACTIVE bracelets:"
+            for ($i = 0; $i -lt $active.Count; $i++) {
+                Write-Host ("          {0}) {1}   online={2}   lastSeen {3}" -f ($i + 1), $active[$i].deviceId, $active[$i].online, $active[$i].lastSeen)
+            }
+            [int]$pick = 0
+            while ($pick -lt 1 -or $pick -gt $active.Count) {
+                $answer = (Read-Host "        Bracelet to test (1-$($active.Count), Enter = 1)").Trim()
+                if (-not $answer) { $pick = 1 } elseif (-not [int]::TryParse($answer, [ref]$pick)) { $pick = 0 }
+            }
+            Set-Device $active[$pick - 1].deviceId
+            Write-Detail "bracelet: $DeviceId"
+        }
         $device = Test-Request "One device" GET "/api/v1/devices/$encodedDevice" -Check {
             param($r); if ($r.data.status -eq "ACTIVE") { Ok "ACTIVE, online=$($r.data.online), lastSeen $($r.data.lastSeen)" } else { Bad "status $($r.data.status)" }
         }
@@ -1022,6 +1049,11 @@ try {
     elseif (-not $canPublish) { Skip-Test "Bracelet run" "Mosquitto or mosquitto_pub is not available" }
     elseif (-not $script:useApi -and $script:dbMode -eq "none") { Skip-Test "Bracelet run" "needs a login or the database to check the results" }
     else {
+        if (-not $DeviceId) {
+            $typed = ""
+            if (-not $NoPrompt) { $typed = (Read-Host "        Bracelet ID for the database-only run (Enter = Catch-001)").Trim() }
+            if ($typed) { Set-Device $typed } else { Set-Device "Catch-001" }
+        }
         if ($script:dbMode -ne "none") {
             $row = Db "select id, status, coalesce(owner_id, 0) from devices where device_id = '$($DeviceId -replace "'", "''")'"
             if ($row) { $c = $row -split "\|"; $script:devicePk = [long]$c[0]; if (-not $script:userId) { $script:userId = [long]$c[2] } }
@@ -1199,10 +1231,13 @@ exit $failed.Count
 # Run from the client folder. Needs the server, Mosquitto and the AI server running; the database is optional.
 # Settings: client/.env (see env_template.txt), database fallbacks from server/.env.
 #
-# Everything, asks for the password and the reset code (about 4 minutes):
+# Everything; asks for the email, the password, the bracelet (if you have several) and the reset code (about 4 minutes):
 #   powershell -ExecutionPolicy Bypass -File scripts\test-all.ps1
 #
-# No questions at all (email/password from client/.env CATCH_TEST_EMAIL / CATCH_TEST_PASSWORD, no reset):
+# A given account or bracelet (still asks for the password):
+#   powershell -ExecutionPolicy Bypass -File scripts\test-all.ps1 -Email you@example.com -DeviceId Catch-002
+#
+# No questions at all (no login, so only the checks without an account and the database checks):
 #   powershell -ExecutionPolicy Bypass -File scripts\test-all.ps1 -NoPrompt
 #
 # Database from Docker / a local PostgreSQL / none:
