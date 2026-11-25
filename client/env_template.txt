@@ -1,1 +1,22 @@
-EXPO_PUBLIC_API_URL = 10.33.241.146
+#for the app (built into the bundle: no secrets here)
+EXPO_PUBLIC_API_URL= #e.g. http://192.168.1.15:8080 (the phone must reach it)
+
+#for scripts\test-all.ps1 (optional; not EXPO_PUBLIC_, so they never go into the app)
+CATCH_TEST_EMAIL= #account that owns the test bracelet
+CATCH_TEST_PASSWORD= #optional; asked hidden when empty
+CATCH_TEST_DEVICE_ID= #default Catch-001
+CATCH_TEST_MQTT_HOST= #default 127.0.0.1
+CATCH_TEST_MQTT_PORT= #default 1883
+CATCH_TEST_AI_URL= #default server/.env AI_BASE_URL, else http://127.0.0.1:8001
+CATCH_TEST_MOSQUITTO_PUB= #default C:\Program Files\Mosquitto\mosquitto_pub.exe
+
+#database for test-all.ps1: auto | docker | local | none (default auto)
+CATCH_TEST_DB_MODE=
+CATCH_TEST_DB_CONTAINER= #docker mode, default docker-sql-db-1
+#local mode: empty values come from server/.env SPRING_DATASOURCE_URL / _USERNAME / _PASSWORD
+CATCH_TEST_DB_HOST=
+CATCH_TEST_DB_PORT=
+CATCH_TEST_DB_NAME=
+CATCH_TEST_DB_USER=
+CATCH_TEST_DB_PASSWORD=
+CATCH_TEST_PSQL= #path to psql.exe if it is not in PATH or C:\Program Files\PostgreSQL\*\bin
