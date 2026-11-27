@@ -2,6 +2,7 @@ package com.legends.server.config.security;
 
 import com.legends.server.realtime.DeviceTopics;
 import com.legends.server.security.JwtAuthenticationFilter;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpStatus;
@@ -54,6 +55,8 @@ public class SecurityConfig {
                         .requestMatchers("/api/v1/device-claims/claim").permitAll()
                         // the WebSocket handshake is open; the STOMP CONNECT frame carries the JWT (StompAuthInterceptor)
                         .requestMatchers(DeviceTopics.ENDPOINT).permitAll()
+                        // container healthcheck (status only, no details)
+                        .requestMatchers("/actuator/health", "/actuator/health/**").permitAll()
                         .anyRequest().authenticated()
                 )
                 .exceptionHandling(ex -> ex
@@ -88,10 +91,12 @@ public class SecurityConfig {
 
 
     @Bean
-    CorsConfigurationSource corsConfigurationSource() {
+    CorsConfigurationSource corsConfigurationSource(
+            @Value("${app.cors.allowed-origins:http://localhost:5173}") List<String> allowedOrigins
+    ) {
         CorsConfiguration configuration = new CorsConfiguration();
 
-        configuration.setAllowedOrigins(List.of("http://localhost:5173"));
+        configuration.setAllowedOrigins(allowedOrigins);
         configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"));
         configuration.setAllowedHeaders(List.of("Authorization", "Content-Type"));
         configuration.setAllowCredentials(true);
